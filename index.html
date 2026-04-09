@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#f5f1ea">
+<title>Life System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;0,9..144,700;1,9..144,400&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f5f1ea;
+  --bg-2:#ede6d8;
+  --ink:#1a1713;
+  --ink-2:#5a5248;
+  --ink-3:#8a7f72;
+  --line:#d9cfbd;
+  --card:#fffdf8;
+  --accent:#b4412c;
+  --accent-2:#2d5a3d;
+  --gold:#a67c28;
+  --ok:#2d5a3d;
+  --warn:#b4412c;
+  --radius:14px;
+  --shadow:0 1px 0 rgba(26,23,19,.04),0 4px 20px rgba(26,23,19,.06);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:'IBM Plex Sans',system-ui,sans-serif;font-size:16px;line-height:1.5;overscroll-behavior-y:contain}
+body{max-width:560px;margin:0 auto;padding:20px 16px 120px;padding-top:max(20px,env(safe-area-inset-top));padding-bottom:max(120px,calc(120px + env(safe-area-inset-bottom)))}
+h1,h2,h3{font-family:'Fraunces',Georgia,serif;font-weight:500;letter-spacing:-.01em;margin:0}
+h1{font-size:34px;line-height:1.05;font-weight:300}
+h1 em{font-style:italic;font-weight:400;color:var(--accent)}
+h2{font-size:13px;text-transform:uppercase;letter-spacing:.14em;font-weight:600;font-family:'IBM Plex Sans',sans-serif;color:var(--ink-3)}
+h3{font-size:20px;font-weight:500}
+
+/* Header */
+.header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:22px}
+.date{font-size:13px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.14em;font-weight:500;margin-bottom:6px}
+.streak-badge{background:var(--card);border:1px solid var(--line);border-radius:999px;padding:8px 14px;font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px;box-shadow:var(--shadow)}
+.streak-badge .flame{font-size:15px}
+
+/* Score hero */
+.score-hero{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:24px 22px;margin-bottom:22px;box-shadow:var(--shadow);position:relative;overflow:hidden}
+.score-hero::before{content:"";position:absolute;top:-40px;right:-40px;width:140px;height:140px;border-radius:50%;background:radial-gradient(circle,rgba(180,65,44,.08),transparent 70%)}
+.score-label{font-size:12px;text-transform:uppercase;letter-spacing:.16em;color:var(--ink-3);font-weight:600;margin-bottom:8px}
+.score-big{font-family:'Fraunces',serif;font-size:56px;font-weight:300;line-height:1;letter-spacing:-.02em;display:flex;align-items:baseline;gap:4px}
+.score-big .total{font-size:26px;color:var(--ink-3);font-weight:300}
+.score-pct{font-size:13px;color:var(--ink-2);margin-top:6px;font-weight:500}
+.progress-track{height:4px;background:var(--bg-2);border-radius:4px;margin-top:14px;overflow:hidden}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--accent-2),var(--gold));border-radius:4px;transition:width .4s ease}
+
+/* Category cards */
+.section{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px 18px 8px;margin-bottom:14px;box-shadow:var(--shadow)}
+.section-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--line)}
+.section-head h3{font-size:19px}
+.section-tally{font-size:12px;color:var(--ink-3);font-weight:600;font-variant-numeric:tabular-nums}
+
+.item{display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px dashed var(--line);gap:12px;min-height:52px}
+.item:last-child{border-bottom:none}
+.item-label{font-size:15px;color:var(--ink);flex:1;line-height:1.3}
+.item.done .item-label{color:var(--ink-3);text-decoration:line-through;text-decoration-thickness:1px}
+.item.na .item-label{color:var(--ink-3);font-style:italic}
+
+/* Binary checkbox */
+.check{width:30px;height:30px;border:1.5px solid var(--line);border-radius:8px;background:var(--bg);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s;font-size:16px;color:transparent;padding:0}
+.check:active{transform:scale(.92)}
+.check.checked{background:var(--accent-2);border-color:var(--accent-2);color:#fff}
+
+/* N/A segmented */
+.seg{display:flex;gap:4px;background:var(--bg);border:1.5px solid var(--line);border-radius:10px;padding:3px;flex-shrink:0}
+.seg button{background:transparent;border:none;padding:7px 10px;font-size:13px;font-weight:600;cursor:pointer;border-radius:7px;color:var(--ink-3);min-width:36px;font-family:inherit;transition:all .15s}
+.seg button:active{transform:scale(.94)}
+.seg button.on[data-v="yes"]{background:var(--accent-2);color:#fff}
+.seg button.on[data-v="no"]{background:var(--accent);color:#fff}
+.seg button.on[data-v="na"]{background:var(--ink-3);color:#fff}
+
+/* Action bar */
+.actions{position:fixed;bottom:0;left:0;right:0;padding:14px 16px calc(14px + env(safe-area-inset-bottom));background:linear-gradient(to top,var(--bg) 70%,rgba(245,241,234,0));display:flex;gap:10px;max-width:560px;margin:0 auto;z-index:10}
+.btn{flex:1;padding:15px;border:none;border-radius:12px;font-family:inherit;font-size:15px;font-weight:600;cursor:pointer;transition:transform .1s;box-shadow:var(--shadow)}
+.btn:active{transform:scale(.97)}
+.btn-primary{background:var(--ink);color:var(--bg)}
+.btn-ghost{background:var(--card);color:var(--ink);border:1px solid var(--line)}
+
+/* Tabs */
+.tabs{display:flex;gap:6px;margin-bottom:18px;background:var(--bg-2);border-radius:12px;padding:4px}
+.tab{flex:1;padding:10px;border:none;background:transparent;font-family:inherit;font-size:13px;font-weight:600;color:var(--ink-3);border-radius:9px;cursor:pointer;letter-spacing:.03em}
+.tab.active{background:var(--card);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.06)}
+
+.view{display:none}
+.view.active{display:block}
+
+/* Insights */
+.insight{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px;margin-bottom:12px;box-shadow:var(--shadow)}
+.insight-label{font-size:11px;text-transform:uppercase;letter-spacing:.14em;color:var(--ink-3);font-weight:600;margin-bottom:6px}
+.insight-value{font-family:'Fraunces',serif;font-size:28px;font-weight:400;line-height:1.1;margin-bottom:4px}
+.insight-value em{font-style:italic;color:var(--accent)}
+.insight-sub{font-size:13px;color:var(--ink-2)}
+.insight-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.insight-row .insight{margin-bottom:0}
+
+.habit-bar{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px dashed var(--line);font-size:14px}
+.habit-bar:last-child{border-bottom:none}
+.habit-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.habit-track{width:90px;height:6px;background:var(--bg-2);border-radius:3px;overflow:hidden;flex-shrink:0}
+.habit-fill{height:100%;border-radius:3px;transition:width .3s}
+.habit-pct{font-size:12px;font-weight:600;color:var(--ink-2);min-width:38px;text-align:right;font-variant-numeric:tabular-nums}
+
+canvas{width:100%;max-width:100%;display:block;margin-top:10px}
+
+.callout{background:linear-gradient(135deg,#fdf6e9,#f5ecd6);border:1px solid var(--gold);border-radius:var(--radius);padding:16px;margin-bottom:14px;font-size:14px;line-height:1.5}
+.callout strong{color:var(--gold);display:block;font-size:11px;text-transform:uppercase;letter-spacing:.14em;margin-bottom:6px;font-weight:700}
+
+.empty{text-align:center;padding:40px 20px;color:var(--ink-3);font-style:italic;font-family:'Fraunces',serif}
+
+.data-tools{display:flex;gap:8px;margin-top:14px}
+.data-tools button{flex:1;padding:10px;font-size:12px;background:var(--card);border:1px solid var(--line);border-radius:8px;font-family:inherit;font-weight:600;color:var(--ink-2);cursor:pointer}
+
+/* Kingdom weekly section */
+.kingdom{background:linear-gradient(135deg,#fdf6e9,#f5ecd6);border:1px solid var(--gold);border-radius:var(--radius);padding:18px;margin-top:18px;margin-bottom:14px;box-shadow:var(--shadow)}
+.kingdom .section-head{border-bottom-color:rgba(166,124,40,.25)}
+.kingdom .section-head h3{color:var(--gold)}
+.kingdom-week{font-size:11px;color:var(--gold);text-transform:uppercase;letter-spacing:.14em;font-weight:700;margin-bottom:2px}
+.k-item{display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px dashed rgba(166,124,40,.25);gap:12px}
+.k-item:last-child{border-bottom:none}
+.k-text{flex:1;min-width:0}
+.k-label{font-size:15px;color:var(--ink);line-height:1.3;font-weight:500}
+.k-desc{font-size:12px;color:var(--ink-3);margin-top:2px;line-height:1.3}
+.k-counter{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.k-btn{width:32px;height:32px;border-radius:8px;border:1.5px solid var(--gold);background:var(--card);color:var(--gold);font-size:18px;font-weight:600;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;padding:0;line-height:1}
+.k-btn:active{transform:scale(.9)}
+.k-count{font-family:'Fraunces',serif;font-size:24px;font-weight:400;min-width:24px;text-align:center;color:var(--gold);font-variant-numeric:tabular-nums}
+.k-check{width:30px;height:30px;border:1.5px solid var(--gold);border-radius:8px;background:var(--card);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:16px;color:transparent;padding:0;transition:all .15s}
+.k-check:active{transform:scale(.92)}
+.k-check.checked{background:var(--gold);color:#fff}
+.kingdom .k-item.done .k-label{color:var(--ink-3);text-decoration:line-through;text-decoration-thickness:1px}
+
+/* Family weekly section */
+.family-wk{background:linear-gradient(135deg,#eef3ed,#dfe9e0);border:1px solid var(--accent-2);border-radius:var(--radius);padding:18px;margin-bottom:14px;box-shadow:var(--shadow)}
+.family-wk .section-head{border-bottom-color:rgba(45,90,61,.25)}
+.family-wk .section-head h3{color:var(--accent-2)}
+.family-wk .kingdom-week{color:var(--accent-2)}
+.family-wk .k-item{border-bottom-color:rgba(45,90,61,.2)}
+.fw-check{width:30px;height:30px;border:1.5px solid var(--accent-2);border-radius:8px;background:var(--card);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:16px;color:transparent;padding:0;transition:all .15s}
+.fw-check:active{transform:scale(.92)}
+.fw-check.checked{background:var(--accent-2);color:#fff}
+.family-wk .k-item.done .k-label{color:var(--ink-3);text-decoration:line-through;text-decoration-thickness:1px}
+
+/* Toast */
+.toast{position:fixed;bottom:100px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--ink);color:var(--bg);padding:12px 22px;border-radius:999px;font-size:14px;font-weight:500;opacity:0;transition:all .25s;pointer-events:none;z-index:20;box-shadow:0 8px 24px rgba(0,0,0,.2)}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <div class="date" id="date"></div>
+    <h1>Life <em>System</em></h1>
+  </div>
+  <div class="streak-badge"><span class="flame">🔥</span><span id="streak">0</span></div>
+</div>
+
+<div class="tabs">
+  <button class="tab active" data-view="today">Today</button>
+  <button class="tab" data-view="insights">Insights</button>
+</div>
+
+<!-- TODAY VIEW -->
+<div class="view active" id="view-today">
+  <div class="score-hero">
+    <div class="score-label">Today's Score</div>
+    <div class="score-big"><span id="score-num">0</span><span class="total">/<span id="score-max">0</span></span></div>
+    <div class="score-pct" id="score-pct">—</div>
+    <div class="progress-track"><div class="progress-fill" id="progress" style="width:0%"></div></div>
+  </div>
+  <div id="app"></div>
+  <div id="familyWeekly"></div>
+  <div id="kingdom"></div>
+</div>
+
+<!-- INSIGHTS VIEW -->
+<div class="view" id="view-insights">
+  <div id="insights-content"></div>
+</div>
+
+<div class="actions" id="actions">
+  <button class="btn btn-ghost" onclick="resetDay()">Reset</button>
+  <button class="btn btn-primary" onclick="save()">Save Day</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const sections = [
+  {name:"Time with God", icon:"✦", type:"binary", items:["Bible Reading","Prayer","Reflection"]},
+  {name:"Obedience", icon:"◈", type:"na", items:["Avoided secular music","Instagram under 45 mins","Controlled speech","Acted on conviction","Chose patience"]},
+  {name:"Health", icon:"◆", type:"binary", items:["No eating after 8pm","Protein meals","8000 steps","One carb","12–14hr fast"]},
+  {name:"Family", icon:"❋", type:"binary", items:["Read son a book"]}
+];
+
+const kingdomActions = [
+  {label:"Shared faith / truth", desc:"Intentionally shared God's word or testimony"},
+  {label:"Helped someone intentionally", desc:"Act of service, support, or encouragement"}
+];
+
+const familyWeekly = [
+  {label:"Intentional check-in with wife", desc:"No phones, no distractions"},
+  {label:"Showed appreciation to wife", desc:"At least once this week"},
+  {label:"Walk with son", desc:"No buggy"}
+];
+
+const todayKey = () => "day-" + new Date().toISOString().split("T")[0];
+
+// ISO week key, week starts Monday
+function weekKey(date){
+  const d = new Date(date);
+  d.setHours(0,0,0,0);
+  // Shift so Monday=0..Sunday=6
+  const day = (d.getDay()+6)%7;
+  d.setDate(d.getDate()-day);
+  return "week-" + d.toISOString().split("T")[0];
+}
+const thisWeekKey = () => weekKey(new Date());
+const $ = id => document.getElementById(id);
+
+function build(){
+  const app = $("app");
+  app.innerHTML = "";
+  sections.forEach((sec,i)=>{
+    const wrap = document.createElement("div");
+    wrap.className = "section";
+    let html = `<div class="section-head"><h3>${sec.icon} ${sec.name}</h3><span class="section-tally" id="tally-${i}">0/${sec.items.length}</span></div>`;
+    sec.items.forEach((item,j)=>{
+      const id = `${i}-${j}`;
+      if(sec.type==="na"){
+        html += `<div class="item" data-item="${id}">
+          <div class="item-label">${item}</div>
+          <div class="seg" data-name="${id}">
+            <button type="button" data-v="yes">✓</button>
+            <button type="button" data-v="no">✕</button>
+            <button type="button" data-v="na">—</button>
+          </div>
+        </div>`;
+      } else {
+        html += `<div class="item" data-item="${id}">
+          <div class="item-label">${item}</div>
+          <button type="button" class="check" data-id="${id}">✓</button>
+        </div>`;
+      }
+    });
+    wrap.innerHTML = html;
+    app.appendChild(wrap);
+  });
+
+  // Bind binary checks
+  app.querySelectorAll(".check").forEach(btn=>{
+    btn.addEventListener("click",()=>{
+      btn.classList.toggle("checked");
+      btn.closest(".item").classList.toggle("done",btn.classList.contains("checked"));
+      update();
+    });
+  });
+  // Bind segmented
+  app.querySelectorAll(".seg").forEach(seg=>{
+    seg.querySelectorAll("button").forEach(b=>{
+      b.addEventListener("click",()=>{
+        const already = b.classList.contains("on");
+        seg.querySelectorAll("button").forEach(x=>x.classList.remove("on"));
+        if(!already) b.classList.add("on");
+        const item = seg.closest(".item");
+        item.classList.remove("done","na");
+        if(!already){
+          if(b.dataset.v==="yes") item.classList.add("done");
+          if(b.dataset.v==="na") item.classList.add("na");
+        }
+        update();
+      });
+    });
+  });
+
+  load();
+  update();
+  buildKingdom();
+  buildFamilyWeekly();
+}
+
+function buildFamilyWeekly(){
+  const wrap = $("familyWeekly");
+  const wk = "fweek-" + thisWeekKey().replace("week-","");
+  const data = JSON.parse(localStorage.getItem(wk) || "{}");
+  const weekStart = new Date(thisWeekKey().replace("week-",""));
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekEnd.getDate()+6);
+  const fmt = d => d.toLocaleDateString(undefined,{month:"short",day:"numeric"});
+
+  let html = `<div class="family-wk">
+    <div class="section-head">
+      <div>
+        <div class="kingdom-week">Week of ${fmt(weekStart)} – ${fmt(weekEnd)}</div>
+        <h3>❋ Family Weekly</h3>
+      </div>
+    </div>`;
+  familyWeekly.forEach((f,i)=>{
+    const checked = data[i] === true;
+    html += `<div class="k-item ${checked?'done':''}">
+      <div class="k-text">
+        <div class="k-label">${f.label}</div>
+        <div class="k-desc">${f.desc}</div>
+      </div>
+      <button type="button" class="fw-check ${checked?'checked':''}" data-f="${i}">✓</button>
+    </div>`;
+  });
+  html += `</div>`;
+  wrap.innerHTML = html;
+
+  wrap.querySelectorAll(".fw-check").forEach(btn=>{
+    btn.addEventListener("click",()=>{
+      const i = btn.dataset.f;
+      const wk = "fweek-" + thisWeekKey().replace("week-","");
+      const data = JSON.parse(localStorage.getItem(wk) || "{}");
+      data[i] = !data[i];
+      localStorage.setItem(wk, JSON.stringify(data));
+      btn.classList.toggle("checked", data[i]);
+      btn.closest(".k-item").classList.toggle("done", data[i]);
+    });
+  });
+}
+
+function buildKingdom(){
+  const wrap = $("kingdom");
+  const wk = thisWeekKey();
+  const data = JSON.parse(localStorage.getItem(wk) || "{}");
+  const weekStart = new Date(wk.replace("week-",""));
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekEnd.getDate()+6);
+  const fmt = d => d.toLocaleDateString(undefined,{month:"short",day:"numeric"});
+
+  let html = `<div class="kingdom">
+    <div class="section-head">
+      <div>
+        <div class="kingdom-week">Week of ${fmt(weekStart)} – ${fmt(weekEnd)}</div>
+        <h3>♰ Kingdom Actions</h3>
+      </div>
+    </div>`;
+  kingdomActions.forEach((k,i)=>{
+    const checked = data[i] === true;
+    html += `<div class="k-item ${checked?'done':''}">
+      <div class="k-text">
+        <div class="k-label">${k.label}</div>
+        <div class="k-desc">${k.desc}</div>
+      </div>
+      <button type="button" class="k-check ${checked?'checked':''}" data-k="${i}">✓</button>
+    </div>`;
+  });
+  html += `</div>`;
+  wrap.innerHTML = html;
+
+  wrap.querySelectorAll(".k-check").forEach(btn=>{
+    btn.addEventListener("click",()=>{
+      const i = btn.dataset.k;
+      const wk = thisWeekKey();
+      const data = JSON.parse(localStorage.getItem(wk) || "{}");
+      data[i] = !data[i];
+      localStorage.setItem(wk, JSON.stringify(data));
+      btn.classList.toggle("checked", data[i]);
+      btn.closest(".k-item").classList.toggle("done", data[i]);
+    });
+  });
+}
+
+function getDayData(){
+  const data = {};
+  sections.forEach((sec,i)=>{
+    sec.items.forEach((_,j)=>{
+      const id = `${i}-${j}`;
+      if(sec.type==="binary"){
+        const cb = document.querySelector(`[data-id="${id}"]`);
+        data[id] = cb && cb.classList.contains("checked");
+      } else {
+        const on = document.querySelector(`[data-name="${id}"] button.on`);
+        data[id] = on ? on.dataset.v : null;
+      }
+    });
+  });
+  return data;
+}
+
+function update(){
+  const data = getDayData();
+  let score=0, max=0;
+  sections.forEach((sec,i)=>{
+    let secScore=0, secMax=0;
+    sec.items.forEach((_,j)=>{
+      const v = data[`${i}-${j}`];
+      if(sec.type==="binary"){
+        secMax++;
+        if(v===true) secScore++;
+      } else {
+        // N/A excluded from both numerator AND denominator
+        if(v==="yes"){ secMax++; secScore++; }
+        else if(v==="no"){ secMax++; }
+        // null or "na" → skipped entirely
+      }
+    });
+    score += secScore;
+    max += secMax;
+    const tally = $(`tally-${i}`);
+    if(tally) tally.textContent = `${secScore}/${secMax || sec.items.length}`;
+  });
+  $("score-num").textContent = score;
+  $("score-max").textContent = max;
+  const pct = max ? Math.round((score/max)*100) : 0;
+  $("score-pct").textContent = max ? `${pct}% complete` : "No items tracked";
+  $("progress").style.width = pct + "%";
+}
+
+function save(){
+  const data = getDayData();
+  localStorage.setItem(todayKey(), JSON.stringify(data));
+  updateStreak(true);
+  toast("Saved ✓");
+}
+
+function resetDay(){
+  if(!confirm("Clear today's entries?")) return;
+  localStorage.removeItem(todayKey());
+  document.querySelectorAll(".check").forEach(c=>c.classList.remove("checked"));
+  document.querySelectorAll(".seg button").forEach(b=>b.classList.remove("on"));
+  document.querySelectorAll(".item").forEach(i=>i.classList.remove("done","na"));
+  update();
+  toast("Reset");
+}
+
+function load(){
+  const data = JSON.parse(localStorage.getItem(todayKey()) || "null");
+  if(!data) return;
+  Object.entries(data).forEach(([k,v])=>{
+    const cb = document.querySelector(`[data-id="${k}"]`);
+    if(cb && v===true){
+      cb.classList.add("checked");
+      cb.closest(".item").classList.add("done");
+    }
+    if(typeof v === "string"){
+      const btn = document.querySelector(`[data-name="${k}"] button[data-v="${v}"]`);
+      if(btn){
+        btn.classList.add("on");
+        const item = btn.closest(".item");
+        if(v==="yes") item.classList.add("done");
+        if(v==="na") item.classList.add("na");
+      }
+    }
+  });
+}
+
+// ----- STREAK (fixed: resets on missed days, tracks longest) -----
+function updateStreak(justSaved=false){
+  const allDays = Object.keys(localStorage).filter(k=>k.startsWith("day-")).sort();
+  if(allDays.length===0){ $("streak").textContent = "0"; return; }
+
+  // Compute current streak by walking backward from today
+  let streak = 0;
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  for(let i=0;i<3650;i++){
+    const d = new Date(today);
+    d.setDate(d.getDate()-i);
+    const key = "day-" + d.toISOString().split("T")[0];
+    if(localStorage.getItem(key)) streak++;
+    else break;
+  }
+  $("streak").textContent = streak;
+
+  // Longest streak (stored)
+  const longest = parseInt(localStorage.getItem("longest")||"0");
+  if(streak > longest) localStorage.setItem("longest", streak);
+}
+
+// ----- INSIGHTS -----
+function renderInsights(){
+  const days = Object.keys(localStorage).filter(k=>k.startsWith("day-")).sort();
+  const content = $("insights-content");
+
+  if(days.length===0){
+    content.innerHTML = `<div class="empty">No data yet.<br>Save your first day to see insights.</div>`;
+    return;
+  }
+
+  // Compute per-day scores
+  const dayScores = days.map(k=>{
+    const d = JSON.parse(localStorage.getItem(k));
+    let s=0,m=0;
+    sections.forEach((sec,i)=>{
+      sec.items.forEach((_,j)=>{
+        const v = d[`${i}-${j}`];
+        if(sec.type==="binary"){ m++; if(v===true) s++; }
+        else {
+          if(v==="yes"){ m++; s++; }
+          else if(v==="no"){ m++; }
+        }
+      });
+    });
+    return {key:k, date:k.replace("day-",""), score:s, max:m, pct: m?Math.round(s/m*100):0};
+  });
+
+  const last30 = dayScores.slice(-30);
+  const last7 = dayScores.slice(-7);
+  const avg7 = last7.length ? Math.round(last7.reduce((a,b)=>a+b.pct,0)/last7.length) : 0;
+  const avg30 = last30.length ? Math.round(last30.reduce((a,b)=>a+b.pct,0)/last30.length) : 0;
+  const trend = avg7 - avg30;
+  const longest = parseInt(localStorage.getItem("longest")||"0");
+  const currentStreak = parseInt($("streak").textContent) || 0;
+
+  // Per-habit stats over last 30 days
+  const habitStats = {};
+  sections.forEach((sec,i)=>{
+    sec.items.forEach((item,j)=>{
+      habitStats[item] = {hits:0, chances:0, cat:sec.name};
+    });
+  });
+  last30.forEach(ds=>{
+    const d = JSON.parse(localStorage.getItem(ds.key));
+    sections.forEach((sec,i)=>{
+      sec.items.forEach((item,j)=>{
+        const v = d[`${i}-${j}`];
+        if(sec.type==="binary"){
+          habitStats[item].chances++;
+          if(v===true) habitStats[item].hits++;
+        } else {
+          if(v==="yes"){ habitStats[item].hits++; habitStats[item].chances++; }
+          else if(v==="no"){ habitStats[item].chances++; }
+        }
+      });
+    });
+  });
+
+  const habitList = Object.entries(habitStats)
+    .filter(([_,s])=>s.chances>0)
+    .map(([name,s])=>({name, pct:Math.round(s.hits/s.chances*100), cat:s.cat}))
+    .sort((a,b)=>b.pct-a.pct);
+
+  const weakest = habitList.length ? habitList[habitList.length-1] : null;
+  const strongest = habitList.length ? habitList[0] : null;
+
+  // Best day of week
+  const dowTotals = [0,0,0,0,0,0,0], dowCounts = [0,0,0,0,0,0,0];
+  const dowNames = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+  dayScores.forEach(ds=>{
+    const dow = new Date(ds.date).getDay();
+    dowTotals[dow] += ds.pct;
+    dowCounts[dow]++;
+  });
+  const dowAvgs = dowTotals.map((t,i)=>dowCounts[i]?t/dowCounts[i]:-1);
+  let bestDow = -1, worstDow = -1, bestVal=-1, worstVal=101;
+  dowAvgs.forEach((v,i)=>{
+    if(v>=0){
+      if(v>bestVal){bestVal=v;bestDow=i}
+      if(v<worstVal){worstVal=v;worstDow=i}
+    }
+  });
+
+  // Build HTML
+  let html = "";
+
+  // Top metrics
+  html += `<div class="insight-row">
+    <div class="insight">
+      <div class="insight-label">7-Day Avg</div>
+      <div class="insight-value">${avg7}<em>%</em></div>
+      <div class="insight-sub">${trend>=0?"▲":"▼"} ${Math.abs(trend)}% vs 30-day</div>
+    </div>
+    <div class="insight">
+      <div class="insight-label">Streak</div>
+      <div class="insight-value">${currentStreak}<em> d</em></div>
+      <div class="insight-sub">Longest: ${longest} days</div>
+    </div>
+  </div>`;
+
+  // Callouts
+  if(weakest && weakest.pct < 50){
+    html += `<div class="callout"><strong>⚠ Needs Attention</strong>${weakest.name} — only ${weakest.pct}% over the last ${Math.min(30,last30.length)} days. Worth praying over.</div>`;
+  }
+  if(strongest && strongest.pct >= 80){
+    html += `<div class="callout"><strong>✦ Strong Ground</strong>${strongest.name} is at ${strongest.pct}%. Keep it anchored.</div>`;
+  }
+  if(bestDow>=0 && worstDow>=0 && bestDow!==worstDow && dayScores.length>=7){
+    html += `<div class="callout"><strong>◈ Weekly Pattern</strong>${dowNames[bestDow]}s are your strongest (${Math.round(bestVal)}%). ${dowNames[worstDow]}s drop to ${Math.round(worstVal)}% — consider why.</div>`;
+  }
+
+  // Trend chart
+  html += `<div class="insight"><div class="insight-label">30-Day Trend</div><canvas id="chart" width="520" height="180"></canvas></div>`;
+
+  // Habit breakdown
+  html += `<div class="insight"><div class="insight-label">Habits · Last ${Math.min(30,last30.length)} days</div>`;
+  habitList.forEach(h=>{
+    const color = h.pct>=75 ? "var(--accent-2)" : h.pct>=50 ? "var(--gold)" : "var(--accent)";
+    html += `<div class="habit-bar">
+      <div class="habit-name">${h.name}</div>
+      <div class="habit-track"><div class="habit-fill" style="width:${h.pct}%;background:${color}"></div></div>
+      <div class="habit-pct">${h.pct}%</div>
+    </div>`;
+  });
+  html += `</div>`;
+
+  // Kingdom actions — this week vs last week
+  const thisWk = thisWeekKey();
+  const lastWkDate = new Date(thisWk.replace("week-",""));
+  lastWkDate.setDate(lastWkDate.getDate()-7);
+  const lastWk = weekKey(lastWkDate);
+  const thisData = JSON.parse(localStorage.getItem(thisWk) || "{}");
+  const lastData = JSON.parse(localStorage.getItem(lastWk) || "{}");
+
+  html += `<div class="insight"><div class="insight-label">♰ Kingdom Actions</div>`;
+  kingdomActions.forEach((k,i)=>{
+    // Count hits over last 4 weeks
+    let hits = 0;
+    for(let w=0;w<4;w++){
+      const d = new Date(thisWk.replace("week-",""));
+      d.setDate(d.getDate() - w*7);
+      const key = weekKey(d);
+      const wd = JSON.parse(localStorage.getItem(key) || "{}");
+      if(wd[i]===true) hits++;
+    }
+    const pct = Math.round((hits/4)*100);
+    const color = pct>=75 ? "var(--accent-2)" : pct>=50 ? "var(--gold)" : "var(--accent)";
+    const thisDone = thisData[i]===true;
+    html += `<div class="habit-bar">
+      <div class="habit-name">${thisDone?"✓ ":"○ "}${k.label}</div>
+      <div class="habit-track"><div class="habit-fill" style="width:${pct}%;background:${color}"></div></div>
+      <div class="habit-pct">${hits}/4</div>
+    </div>`;
+  });
+  html += `<div style="font-size:12px;color:var(--ink-3);margin-top:8px">Completion over last 4 weeks</div></div>`;
+
+  // Family Weekly — last 4 weeks completion
+  const fwLabel = "fweek-" + thisWk.replace("week-","");
+  const thisFw = JSON.parse(localStorage.getItem(fwLabel) || "{}");
+  const lastFwKey = "fweek-" + lastWk.replace("week-","");
+  const lastFw = JSON.parse(localStorage.getItem(lastFwKey) || "{}");
+
+  html += `<div class="insight"><div class="insight-label">❋ Family Weekly</div>`;
+  familyWeekly.forEach((f,i)=>{
+    // Count hits over last 4 weeks
+    let hits = 0;
+    for(let w=0;w<4;w++){
+      const d = new Date(thisWk.replace("week-",""));
+      d.setDate(d.getDate() - w*7);
+      const key = "fweek-" + weekKey(d).replace("week-","");
+      const wd = JSON.parse(localStorage.getItem(key) || "{}");
+      if(wd[i]===true) hits++;
+    }
+    const pct = Math.round((hits/4)*100);
+    const color = pct>=75 ? "var(--accent-2)" : pct>=50 ? "var(--gold)" : "var(--accent)";
+    const thisDone = thisFw[i]===true;
+    html += `<div class="habit-bar">
+      <div class="habit-name">${thisDone?"✓ ":"○ "}${f.label}</div>
+      <div class="habit-track"><div class="habit-fill" style="width:${pct}%;background:${color}"></div></div>
+      <div class="habit-pct">${hits}/4</div>
+    </div>`;
+  });
+  html += `<div style="font-size:12px;color:var(--ink-3);margin-top:8px">Completion over last 4 weeks</div></div>`;
+
+  // Data tools
+  html += `<div class="insight"><div class="insight-label">Data</div>
+    <div style="font-size:13px;color:var(--ink-2);margin-top:6px">${days.length} days logged</div>
+    <div class="data-tools">
+      <button onclick="exportData()">Export JSON</button>
+      <button onclick="importData()">Import JSON</button>
+    </div>
+  </div>`;
+
+  content.innerHTML = html;
+
+  // Draw chart
+  drawChart(last30);
+}
+
+function drawChart(data){
+  const c = $("chart");
+  if(!c) return;
+  const dpr = window.devicePixelRatio||1;
+  const w = c.clientWidth, h = 180;
+  c.width = w*dpr; c.height = h*dpr;
+  const ctx = c.getContext("2d");
+  ctx.scale(dpr,dpr);
+  ctx.clearRect(0,0,w,h);
+
+  const pad = {t:12,r:8,b:22,l:28};
+  const cw = w - pad.l - pad.r;
+  const ch = h - pad.t - pad.b;
+
+  // Grid
+  ctx.strokeStyle = "#e8dfcb";
+  ctx.lineWidth = 1;
+  ctx.font = "10px 'IBM Plex Sans',sans-serif";
+  ctx.fillStyle = "#8a7f72";
+  [0,25,50,75,100].forEach(y=>{
+    const yy = pad.t + ch - (y/100)*ch;
+    ctx.beginPath(); ctx.moveTo(pad.l,yy); ctx.lineTo(w-pad.r,yy); ctx.stroke();
+    ctx.fillText(y+"%", 2, yy+3);
+  });
+
+  if(data.length===0) return;
+
+  const xStep = data.length>1 ? cw/(data.length-1) : 0;
+  const pts = data.map((d,i)=>({
+    x: pad.l + i*xStep,
+    y: pad.t + ch - (d.pct/100)*ch
+  }));
+
+  // 7-day rolling avg
+  const rolling = data.map((_,i)=>{
+    const start = Math.max(0,i-6);
+    const slice = data.slice(start,i+1);
+    return slice.reduce((a,b)=>a+b.pct,0)/slice.length;
+  });
+  const rollPts = rolling.map((v,i)=>({
+    x: pad.l + i*xStep,
+    y: pad.t + ch - (v/100)*ch
+  }));
+
+  // Area under line
+  ctx.beginPath();
+  ctx.moveTo(pts[0].x, pad.t+ch);
+  pts.forEach(p=>ctx.lineTo(p.x,p.y));
+  ctx.lineTo(pts[pts.length-1].x, pad.t+ch);
+  ctx.closePath();
+  const grad = ctx.createLinearGradient(0,pad.t,0,pad.t+ch);
+  grad.addColorStop(0,"rgba(45,90,61,.18)");
+  grad.addColorStop(1,"rgba(45,90,61,0)");
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // Daily line
+  ctx.strokeStyle = "#2d5a3d";
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  pts.forEach((p,i)=> i===0 ? ctx.moveTo(p.x,p.y) : ctx.lineTo(p.x,p.y));
+  ctx.stroke();
+
+  // Rolling avg dashed
+  if(data.length>=3){
+    ctx.strokeStyle = "#b4412c";
+    ctx.lineWidth = 2;
+    ctx.setLineDash([4,3]);
+    ctx.beginPath();
+    rollPts.forEach((p,i)=> i===0 ? ctx.moveTo(p.x,p.y) : ctx.lineTo(p.x,p.y));
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // Dots
+  ctx.fillStyle = "#2d5a3d";
+  pts.forEach(p=>{ ctx.beginPath(); ctx.arc(p.x,p.y,2.5,0,Math.PI*2); ctx.fill(); });
+
+  // Legend
+  ctx.font = "10px 'IBM Plex Sans',sans-serif";
+  ctx.fillStyle = "#5a5248";
+  ctx.fillText("— daily", pad.l, h-6);
+  ctx.fillStyle = "#b4412c";
+  ctx.fillText("-- 7-day avg", pad.l+48, h-6);
+}
+
+// ----- Data tools -----
+function exportData(){
+  const out = {};
+  Object.keys(localStorage).forEach(k=>{
+    if(k.startsWith("day-")||k.startsWith("week-")||k.startsWith("fweek-")||k==="longest") out[k]=localStorage.getItem(k);
+  });
+  const blob = new Blob([JSON.stringify(out,null,2)],{type:"application/json"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `life-system-${new Date().toISOString().split("T")[0]}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast("Exported");
+}
+
+function importData(){
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = "application/json";
+  input.onchange = e=>{
+    const file = e.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = ev=>{
+      try{
+        const obj = JSON.parse(ev.target.result);
+        Object.entries(obj).forEach(([k,v])=>localStorage.setItem(k,v));
+        toast("Imported ✓");
+        renderInsights();
+        updateStreak();
+      }catch(err){ toast("Invalid file"); }
+    };
+    reader.readAsText(file);
+  };
+  input.click();
+}
+
+// ----- Toast -----
+let toastTimer;
+function toast(msg){
+  const t = $("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>t.classList.remove("show"),1800);
+}
+
+// ----- Tabs -----
+document.querySelectorAll(".tab").forEach(tab=>{
+  tab.addEventListener("click",()=>{
+    document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
+    document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));
+    tab.classList.add("active");
+    $("view-"+tab.dataset.view).classList.add("active");
+    if(tab.dataset.view==="insights"){
+      renderInsights();
+      $("actions").style.display = "none";
+    } else {
+      $("actions").style.display = "flex";
+    }
+  });
+});
+
+// Init
+$("date").textContent = new Date().toLocaleDateString(undefined,{weekday:"long",month:"long",day:"numeric"});
+build();
+updateStreak();
+</script>
+</body>
+</html>
