@@ -37,6 +37,13 @@ h3{font-size:20px;font-weight:500}
 /* Header */
 .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:22px}
 .date{font-size:13px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.14em;font-weight:500;margin-bottom:6px}
+.date-nav{display:flex;align-items:center;gap:4px;margin-bottom:6px;margin-left:-8px}
+.nav-btn{background:transparent;border:none;color:var(--ink-3);font-size:22px;width:28px;height:28px;cursor:pointer;font-family:'Fraunces',serif;padding:0;line-height:1;border-radius:6px}
+.nav-btn:active{background:var(--bg-2)}
+.nav-btn:disabled{opacity:.25;cursor:default}
+.date-display{background:transparent;border:none;font-size:13px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.14em;font-weight:500;font-family:inherit;cursor:pointer;padding:4px 8px;border-radius:6px}
+.date-display:active{background:var(--bg-2)}
+.date-display.past{color:var(--accent)}
 .streak-badge{background:var(--card);border:1px solid var(--line);border-radius:999px;padding:8px 14px;font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px;box-shadow:var(--shadow)}
 .streak-badge .flame{font-size:15px}
 
@@ -155,7 +162,11 @@ canvas{width:100%;max-width:100%;display:block;margin-top:10px}
 
 <div class="header">
   <div>
-    <div class="date" id="date"></div>
+    <div class="date-nav">
+      <button class="nav-btn" id="prevDay" aria-label="Previous day">‹</button>
+      <button class="date-display" id="date"></button>
+      <button class="nav-btn" id="nextDay" aria-label="Next day">›</button>
+    </div>
     <h1>Life <em>System</em></h1>
   </div>
   <div class="streak-badge"><span class="flame">🔥</span><span id="streak">0</span></div>
@@ -211,6 +222,9 @@ const familyWeekly = [
 ];
 
 const todayKey = () => "day-" + new Date().toISOString().split("T")[0];
+let viewingDate = new Date(); // currently displayed day
+const viewingKey = () => "day-" + viewingDate.toISOString().split("T")[0];
+const isToday = () => viewingDate.toDateString() === new Date().toDateString();
 
 // ISO week key, week starts Monday
 function weekKey(date){
@@ -417,14 +431,14 @@ function update(){
 
 function save(){
   const data = getDayData();
-  localStorage.setItem(todayKey(), JSON.stringify(data));
+  localStorage.setItem(viewingKey(), JSON.stringify(data));
   updateStreak(true);
-  toast("Saved ✓");
+  toast(isToday() ? "Saved ✓" : "Updated ✓");
 }
 
 function resetDay(){
-  if(!confirm("Clear today's entries?")) return;
-  localStorage.removeItem(todayKey());
+  if(!confirm("Clear this day's entries?")) return;
+  localStorage.removeItem(viewingKey());
   document.querySelectorAll(".check").forEach(c=>c.classList.remove("checked"));
   document.querySelectorAll(".seg button").forEach(b=>b.classList.remove("on"));
   document.querySelectorAll(".item").forEach(i=>i.classList.remove("done","na"));
@@ -433,7 +447,7 @@ function resetDay(){
 }
 
 function load(){
-  const data = JSON.parse(localStorage.getItem(todayKey()) || "null");
+  const data = JSON.parse(localStorage.getItem(viewingKey()) || "null");
   if(!data) return;
   Object.entries(data).forEach(([k,v])=>{
     const cb = document.querySelector(`[data-id="${k}"]`);
@@ -825,10 +839,53 @@ document.querySelectorAll(".tab").forEach(tab=>{
   });
 });
 
+function refreshDay(){
+  // Reset all UI state
+  document.querySelectorAll(".check").forEach(c=>c.classList.remove("checked"));
+  document.querySelectorAll(".seg button").forEach(b=>b.classList.remove("on"));
+  document.querySelectorAll(".item").forEach(i=>i.classList.remove("done","na"));
+  load();
+  update();
+  updateDateDisplay();
+}
+
+function updateDateDisplay(){
+  const today = new Date(); today.setHours(0,0,0,0);
+  const v = new Date(viewingDate); v.setHours(0,0,0,0);
+  const diff = Math.round((today-v)/86400000);
+  let label;
+  if(diff===0) label = "Today · " + viewingDate.toLocaleDateString(undefined,{weekday:"long",month:"long",day:"numeric"});
+  else if(diff===1) label = "Yesterday · " + viewingDate.toLocaleDateString(undefined,{month:"short",day:"numeric"});
+  else label = viewingDate.toLocaleDateString(undefined,{weekday:"long",month:"long",day:"numeric"});
+  const el = $("date");
+  el.textContent = label;
+  el.classList.toggle("past", diff>0);
+  $("nextDay").disabled = diff<=0;
+}
+
 // Init
-$("date").textContent = new Date().toLocaleDateString(undefined,{weekday:"long",month:"long",day:"numeric"});
+viewingDate = new Date();
 build();
+updateDateDisplay();
 updateStreak();
+
+$("prevDay").addEventListener("click",()=>{
+  viewingDate.setDate(viewingDate.getDate()-1);
+  refreshDay();
+});
+$("nextDay").addEventListener("click",()=>{
+  const today = new Date(); today.setHours(0,0,0,0);
+  const v = new Date(viewingDate); v.setHours(0,0,0,0);
+  if(v >= today) return;
+  viewingDate.setDate(viewingDate.getDate()+1);
+  refreshDay();
+});
+$("date").addEventListener("click",()=>{
+  if(!isToday()){
+    viewingDate = new Date();
+    refreshDay();
+  }
+});
 </script>
 </body>
 </html>
