@@ -1075,6 +1075,7 @@ async function initSync(){
     await pullAll();
     syncStatus("synced");
     refreshDay();
+    updateStreak();
   }catch(e){
     console.error("Sync init failed:", e);
     syncStatus("error");
@@ -1137,6 +1138,7 @@ window.addEventListener("focus", async ()=>{
   await pullAll();
   syncStatus("synced");
   refreshDay();
+  updateStreak();
 });
 
 // ----- Tabs -----
