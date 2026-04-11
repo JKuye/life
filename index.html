@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;0,9..144,700;1,9..144,400&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root{
   --bg:#f5f1ea;
@@ -120,6 +121,39 @@ canvas{width:100%;max-width:100%;display:block;margin-top:10px}
 
 .empty{text-align:center;padding:40px 20px;color:var(--ink-3);font-style:italic;font-family:'Fraunces',serif}
 
+/* Sabbath review */
+.sabbath-hero{background:linear-gradient(135deg,#1a1713,#2a2520);color:var(--bg);border-radius:var(--radius);padding:28px 24px;margin-bottom:18px;box-shadow:var(--shadow);position:relative;overflow:hidden}
+.sabbath-hero::before{content:"";position:absolute;top:-60px;right:-60px;width:200px;height:200px;border-radius:50%;background:radial-gradient(circle,rgba(166,124,40,.25),transparent 70%)}
+.sabbath-eyebrow{font-size:11px;text-transform:uppercase;letter-spacing:.18em;color:var(--gold);font-weight:600;margin-bottom:10px;position:relative}
+.sabbath-title{font-family:'Fraunces',serif;font-size:30px;font-weight:300;line-height:1.1;letter-spacing:-.01em;margin-bottom:6px;position:relative}
+.sabbath-title em{font-style:italic;color:var(--gold)}
+.sabbath-dates{font-size:13px;color:rgba(245,241,234,.6);position:relative}
+.sabbath-score{font-family:'Fraunces',serif;font-size:64px;font-weight:300;line-height:1;margin-top:18px;position:relative;display:flex;align-items:baseline;gap:6px}
+.sabbath-score .pct{font-size:24px;color:rgba(245,241,234,.5)}
+
+.sabbath-card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:20px;margin-bottom:14px;box-shadow:var(--shadow)}
+.sabbath-card-label{font-size:11px;text-transform:uppercase;letter-spacing:.14em;color:var(--ink-3);font-weight:600;margin-bottom:14px}
+.sabbath-card h4{font-family:'Fraunces',serif;font-weight:500;font-size:17px;margin:0 0 4px;color:var(--ink)}
+
+.bright-list, .dim-list{list-style:none;padding:0;margin:0}
+.bright-list li, .dim-list li{padding:10px 0;border-bottom:1px dashed var(--line);font-size:14px;display:flex;justify-content:space-between;align-items:center;gap:12px}
+.bright-list li:last-child, .dim-list li:last-child{border-bottom:none}
+.bright-list .b-name, .dim-list .b-name{flex:1;color:var(--ink)}
+.bright-list .b-pct{color:var(--accent-2);font-weight:600;font-variant-numeric:tabular-nums}
+.dim-list .b-pct{color:var(--accent);font-weight:600;font-variant-numeric:tabular-nums}
+
+.reflections-week{margin-top:4px}
+.reflection-entry{padding:14px 0;border-bottom:1px dashed var(--line)}
+.reflection-entry:last-child{border-bottom:none}
+.reflection-day{font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:var(--ink-3);font-weight:600;margin-bottom:6px}
+.reflection-text{font-family:'Fraunces',serif;font-size:15px;line-height:1.55;color:var(--ink-2);font-style:italic}
+
+.sabbath-prompt{background:linear-gradient(135deg,#fdf6e9,#f5ecd6);border:1px solid var(--gold);border-radius:var(--radius);padding:20px;margin-bottom:14px;box-shadow:var(--shadow)}
+.sabbath-prompt-label{font-family:'Fraunces',serif;font-size:18px;font-style:italic;color:var(--gold);margin-bottom:12px;font-weight:500}
+.sabbath-prompt textarea{width:100%;min-height:110px;border:none;background:rgba(255,255,255,.5);border-radius:8px;padding:12px;font-family:'Fraunces',serif;font-size:16px;line-height:1.55;color:var(--ink);resize:vertical;outline:none;font-weight:400}
+.sabbath-prompt textarea::placeholder{color:var(--ink-3);font-style:italic}
+.sabbath-save{margin-top:10px;padding:12px;background:var(--gold);color:#fff;border:none;border-radius:10px;font-family:inherit;font-weight:600;font-size:14px;cursor:pointer;width:100%}
+
 .data-tools{display:flex;gap:8px;margin-top:14px}
 .data-tools button{flex:1;padding:10px;font-size:12px;background:var(--card);border:1px solid var(--line);border-radius:8px;font-family:inherit;font-weight:600;color:var(--ink-2);cursor:pointer}
 
@@ -142,6 +176,13 @@ canvas{width:100%;max-width:100%;display:block;margin-top:10px}
 .k-check.checked{background:var(--gold);color:#fff}
 .kingdom .k-item.done .k-label{color:var(--ink-3);text-decoration:line-through;text-decoration-thickness:1px}
 
+/* Reflection */
+.reflection{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px;margin-top:18px;margin-bottom:14px;box-shadow:var(--shadow)}
+.reflection-label{font-family:'Fraunces',serif;font-size:18px;font-style:italic;color:var(--ink-2);margin-bottom:12px;font-weight:400}
+.reflection textarea{width:100%;min-height:90px;border:none;background:transparent;font-family:'Fraunces',serif;font-size:16px;line-height:1.55;color:var(--ink);resize:none;outline:none;padding:0;font-weight:400}
+.reflection textarea::placeholder{color:var(--ink-3);font-style:italic}
+.reflection-meta{font-size:11px;color:var(--ink-3);margin-top:8px;text-transform:uppercase;letter-spacing:.1em;font-weight:600}
+
 /* Family weekly section */
 .family-wk{background:linear-gradient(135deg,#eef3ed,#dfe9e0);border:1px solid var(--accent-2);border-radius:var(--radius);padding:18px;margin-bottom:14px;box-shadow:var(--shadow)}
 .family-wk .section-head{border-bottom-color:rgba(45,90,61,.25)}
@@ -156,6 +197,13 @@ canvas{width:100%;max-width:100%;display:block;margin-top:10px}
 /* Toast */
 .toast{position:fixed;bottom:100px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--ink);color:var(--bg);padding:12px 22px;border-radius:999px;font-size:14px;font-weight:500;opacity:0;transition:all .25s;pointer-events:none;z-index:20;box-shadow:0 8px 24px rgba(0,0,0,.2)}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* Sync indicator */
+.sync-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--ink-3);margin-right:6px;vertical-align:middle;transition:background .3s}
+.sync-dot.synced{background:var(--accent-2)}
+.sync-dot.syncing{background:var(--gold);animation:pulse 1s ease-in-out infinite}
+.sync-dot.error{background:var(--accent)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
 </style>
 </head>
 <body>
@@ -169,12 +217,13 @@ canvas{width:100%;max-width:100%;display:block;margin-top:10px}
     </div>
     <h1>Life <em>System</em></h1>
   </div>
-  <div class="streak-badge"><span class="flame">🔥</span><span id="streak">0</span></div>
+  <div class="streak-badge"><span class="sync-dot" id="syncDot" title="Sync status"></span><span class="flame">🔥</span><span id="streak">0</span></div>
 </div>
 
 <div class="tabs">
   <button class="tab active" data-view="today">Today</button>
   <button class="tab" data-view="insights">Insights</button>
+  <button class="tab" data-view="sabbath">Sabbath</button>
 </div>
 
 <!-- TODAY VIEW -->
@@ -186,6 +235,11 @@ canvas{width:100%;max-width:100%;display:block;margin-top:10px}
     <div class="progress-track"><div class="progress-fill" id="progress" style="width:0%"></div></div>
   </div>
   <div id="app"></div>
+  <div class="reflection">
+    <div class="reflection-label">One thing from today...</div>
+    <textarea id="reflection" placeholder="What is God doing? What did you notice? What do you want to remember?"></textarea>
+    <div class="reflection-meta" id="reflection-meta"></div>
+  </div>
   <div id="familyWeekly"></div>
   <div id="kingdom"></div>
 </div>
@@ -193,6 +247,11 @@ canvas{width:100%;max-width:100%;display:block;margin-top:10px}
 <!-- INSIGHTS VIEW -->
 <div class="view" id="view-insights">
   <div id="insights-content"></div>
+</div>
+
+<!-- SABBATH VIEW -->
+<div class="view" id="view-sabbath">
+  <div id="sabbath-content"></div>
 </div>
 
 <div class="actions" id="actions">
@@ -206,7 +265,7 @@ canvas{width:100%;max-width:100%;display:block;margin-top:10px}
 const sections = [
   {name:"Time with God", icon:"✦", type:"binary", items:["Bible Reading","Prayer","Reflection"]},
   {name:"Obedience", icon:"◈", type:"na", items:["Avoided secular music","Instagram under 45 mins","Controlled speech","Acted on conviction","Chose patience"]},
-  {name:"Health", icon:"◆", type:"binary", items:["No eating after 8pm","Protein meals","8000 steps","One carb","12–14hr fast"]},
+  {name:"Health", icon:"◆", type:"na", items:["No eating after 8pm","Protein meals","8000 steps","One carb","12–14hr fast"]},
   {name:"Family", icon:"❋", type:"binary", items:["Read son a book"]}
 ];
 
@@ -432,6 +491,11 @@ function update(){
 function save(){
   const data = getDayData();
   localStorage.setItem(viewingKey(), JSON.stringify(data));
+  const reflection = $("reflection").value.trim();
+  const rKey = "reflect-" + viewingDate.toISOString().split("T")[0];
+  if(reflection) localStorage.setItem(rKey, reflection);
+  else localStorage.removeItem(rKey);
+  updateReflectionMeta();
   updateStreak(true);
   toast(isToday() ? "Saved ✓" : "Updated ✓");
 }
@@ -439,6 +503,9 @@ function save(){
 function resetDay(){
   if(!confirm("Clear this day's entries?")) return;
   localStorage.removeItem(viewingKey());
+  localStorage.removeItem("reflect-" + viewingDate.toISOString().split("T")[0]);
+  $("reflection").value = "";
+  updateReflectionMeta();
   document.querySelectorAll(".check").forEach(c=>c.classList.remove("checked"));
   document.querySelectorAll(".seg button").forEach(b=>b.classList.remove("on"));
   document.querySelectorAll(".item").forEach(i=>i.classList.remove("done","na"));
@@ -779,7 +846,7 @@ function drawChart(data){
 function exportData(){
   const out = {};
   Object.keys(localStorage).forEach(k=>{
-    if(k.startsWith("day-")||k.startsWith("week-")||k.startsWith("fweek-")||k==="longest") out[k]=localStorage.getItem(k);
+    if(k.startsWith("day-")||k.startsWith("week-")||k.startsWith("fweek-")||k.startsWith("reflect-")||k.startsWith("wreflect-")||k==="longest") out[k]=localStorage.getItem(k);
   });
   const blob = new Blob([JSON.stringify(out,null,2)],{type:"application/json"});
   const url = URL.createObjectURL(blob);
@@ -813,6 +880,158 @@ function importData(){
   input.click();
 }
 
+// ----- SABBATH REVIEW -----
+function renderSabbath(){
+  const content = $("sabbath-content");
+
+  const today = new Date(); today.setHours(0,0,0,0);
+  const dow = (today.getDay()+6)%7;
+  const monday = new Date(today); monday.setDate(today.getDate()-dow);
+  const sunday = new Date(monday); sunday.setDate(monday.getDate()+6);
+  const fmt = d => d.toLocaleDateString(undefined,{month:"short",day:"numeric"});
+
+  const weekDays = [];
+  for(let i=0;i<7;i++){
+    const d = new Date(monday); d.setDate(monday.getDate()+i);
+    if(d > today) break;
+    weekDays.push(d);
+  }
+
+  const dayResults = weekDays.map(d=>{
+    const key = "day-" + d.toISOString().split("T")[0];
+    const data = JSON.parse(localStorage.getItem(key) || "null");
+    if(!data) return {date:d, has:false, pct:0};
+    let s=0,m=0;
+    sections.forEach((sec,i)=>{
+      sec.items.forEach((_,j)=>{
+        const v = data[`${i}-${j}`];
+        if(sec.type==="binary"){ m++; if(v===true) s++; }
+        else { if(v==="yes"){m++;s++;} else if(v==="no"){m++;} }
+      });
+    });
+    return {date:d, has:true, score:s, max:m, pct: m?Math.round(s/m*100):0};
+  });
+
+  const logged = dayResults.filter(d=>d.has);
+  const weekAvg = logged.length ? Math.round(logged.reduce((a,b)=>a+b.pct,0)/logged.length) : 0;
+
+  const habitStats = {};
+  sections.forEach((sec)=>sec.items.forEach(item=>{ habitStats[item]={hits:0,chances:0}; }));
+  weekDays.forEach(d=>{
+    const data = JSON.parse(localStorage.getItem("day-"+d.toISOString().split("T")[0]) || "null");
+    if(!data) return;
+    sections.forEach((sec,i)=>{
+      sec.items.forEach((item,j)=>{
+        const v = data[`${i}-${j}`];
+        if(sec.type==="binary"){ habitStats[item].chances++; if(v===true) habitStats[item].hits++; }
+        else { if(v==="yes"){habitStats[item].hits++;habitStats[item].chances++;} else if(v==="no"){habitStats[item].chances++;} }
+      });
+    });
+  });
+  const habitList = Object.entries(habitStats)
+    .filter(([_,s])=>s.chances>0)
+    .map(([name,s])=>({name, pct:Math.round(s.hits/s.chances*100)}))
+    .sort((a,b)=>b.pct-a.pct);
+  const top3 = habitList.slice(0,3);
+  const weakest = habitList.length ? habitList[habitList.length-1] : null;
+
+  const wk = thisWeekKey();
+  const kData = JSON.parse(localStorage.getItem(wk) || "{}");
+  const fwKey = "fweek-" + wk.replace("week-","");
+  const fwData = JSON.parse(localStorage.getItem(fwKey) || "{}");
+
+  const reflections = weekDays.map(d=>{
+    const r = localStorage.getItem("reflect-"+d.toISOString().split("T")[0]);
+    return r ? {date:d, text:r} : null;
+  }).filter(Boolean);
+
+  const weeklyReflectKey = "wreflect-" + wk.replace("week-","");
+  const weeklyReflection = localStorage.getItem(weeklyReflectKey) || "";
+
+  let html = "";
+
+  html += `<div class="sabbath-hero">
+    <div class="sabbath-eyebrow">Sabbath Review</div>
+    <div class="sabbath-title">Week of <em>${fmt(monday)}</em></div>
+    <div class="sabbath-dates">${fmt(monday)} – ${fmt(sunday)} · ${logged.length} of ${weekDays.length} days logged</div>
+    ${logged.length ? `<div class="sabbath-score">${weekAvg}<span class="pct">% avg</span></div>` : ""}
+  </div>`;
+
+  if(logged.length===0){
+    html += `<div class="empty">No days logged this week yet.<br>Come back after you've saved a few.</div>`;
+    content.innerHTML = html;
+    return;
+  }
+
+  if(top3.length){
+    html += `<div class="sabbath-card">
+      <div class="sabbath-card-label">✦ Where you stood firm</div>
+      <ul class="bright-list">`;
+    top3.forEach(h=>{
+      html += `<li><span class="b-name">${h.name}</span><span class="b-pct">${h.pct}%</span></li>`;
+    });
+    html += `</ul></div>`;
+  }
+
+  if(weakest && weakest.pct < 75){
+    html += `<div class="sabbath-card">
+      <div class="sabbath-card-label">◈ Where to lean in</div>
+      <h4>${weakest.name}</h4>
+      <div style="font-size:14px;color:var(--ink-2);margin-top:4px">${weakest.pct}% this week. Worth bringing to prayer before Monday.</div>
+    </div>`;
+  }
+
+  html += `<div class="sabbath-card">
+    <div class="sabbath-card-label">♰ Kingdom & Family</div>`;
+  kingdomActions.forEach((k,i)=>{
+    const done = kData[i]===true;
+    html += `<div style="display:flex;justify-content:space-between;padding:8px 0;font-size:14px;border-bottom:1px dashed var(--line)">
+      <span style="color:${done?'var(--ink)':'var(--ink-3)'}">${done?'✓':'○'} ${k.label}</span>
+    </div>`;
+  });
+  familyWeekly.forEach((f,i)=>{
+    const done = fwData[i]===true;
+    html += `<div style="display:flex;justify-content:space-between;padding:8px 0;font-size:14px;border-bottom:1px dashed var(--line)">
+      <span style="color:${done?'var(--ink)':'var(--ink-3)'}">${done?'✓':'○'} ${f.label}</span>
+    </div>`;
+  });
+  html += `</div>`;
+
+  if(reflections.length){
+    html += `<div class="sabbath-card">
+      <div class="sabbath-card-label">Your week in your own words</div>
+      <div class="reflections-week">`;
+    reflections.forEach(r=>{
+      const dayName = r.date.toLocaleDateString(undefined,{weekday:"long"});
+      html += `<div class="reflection-entry">
+        <div class="reflection-day">${dayName}</div>
+        <div class="reflection-text">${escapeHtml(r.text)}</div>
+      </div>`;
+    });
+    html += `</div></div>`;
+  }
+
+  html += `<div class="sabbath-prompt">
+    <div class="sabbath-prompt-label">What is God teaching you this week?</div>
+    <textarea id="weekly-reflection" placeholder="Step back. What's the thread running through this week? What's God been showing you — through what worked, what didn't, the people you encountered?">${escapeHtml(weeklyReflection)}</textarea>
+    <button class="sabbath-save" onclick="saveWeeklyReflection()">Save Reflection</button>
+  </div>`;
+
+  content.innerHTML = html;
+}
+
+function escapeHtml(s){
+  return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function saveWeeklyReflection(){
+  const text = $("weekly-reflection").value.trim();
+  const key = "wreflect-" + thisWeekKey().replace("week-","");
+  if(text) localStorage.setItem(key, text);
+  else localStorage.removeItem(key);
+  toast("Reflection saved ✓");
+}
+
 // ----- Toast -----
 let toastTimer;
 function toast(msg){
@@ -823,6 +1042,103 @@ function toast(msg){
   toastTimer = setTimeout(()=>t.classList.remove("show"),1800);
 }
 
+// ----- SUPABASE SYNC -----
+const SUPABASE_URL = "https://yuzwyovstooowojltidx.supabase.co";
+const SUPABASE_KEY = "sb_publishable_upPkpgzzI6SnsFXv3qo0Gg_dK5_YH3W";
+const SYNC_EMAIL = "jessekuye@gmail.com";
+const SYNC_PASSWORD = "Knopper";
+
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+let syncReady = false;
+let currentUserId = null;
+
+function syncStatus(state){
+  const dot = $("syncDot");
+  if(!dot) return;
+  dot.classList.remove("synced","syncing","error");
+  if(state) dot.classList.add(state);
+  dot.title = state==="synced" ? "Synced" : state==="syncing" ? "Syncing…" : state==="error" ? "Sync error" : "Offline";
+}
+
+function isSyncableKey(k){
+  return k.startsWith("day-") || k.startsWith("week-") || k.startsWith("fweek-") ||
+         k.startsWith("reflect-") || k.startsWith("wreflect-") || k === "longest";
+}
+
+async function initSync(){
+  syncStatus("syncing");
+  try{
+    const { data: authData, error } = await sb.auth.signInWithPassword({ email: SYNC_EMAIL, password: SYNC_PASSWORD });
+    if(error) throw error;
+    currentUserId = authData.user.id;
+    syncReady = true;
+    await pullAll();
+    syncStatus("synced");
+    refreshDay();
+  }catch(e){
+    console.error("Sync init failed:", e);
+    syncStatus("error");
+    toast("Sync offline — using local data");
+  }
+}
+
+async function pullAll(){
+  if(!syncReady) return;
+  const { data, error } = await sb.from("life_data").select("key,value");
+  if(error){ console.error("Pull failed:", error); syncStatus("error"); return; }
+  data.forEach(row=>{
+    const v = typeof row.value === "string" ? row.value : JSON.stringify(row.value);
+    _setItem(row.key, v);
+  });
+}
+
+async function pushKey(key){
+  if(!syncReady || !currentUserId) return;
+  if(!isSyncableKey(key)) return;
+  syncStatus("syncing");
+  try{
+    const raw = localStorage.getItem(key);
+    if(raw === null){
+      await sb.from("life_data").delete().eq("key", key);
+    } else {
+      let value;
+      try { value = JSON.parse(raw); } catch { value = raw; }
+      const { error } = await sb.from("life_data").upsert({
+        user_id: currentUserId,
+        key,
+        value,
+        updated_at: new Date().toISOString()
+      }, { onConflict: "user_id,key" });
+      if(error) throw error;
+    }
+    syncStatus("synced");
+  }catch(e){
+    console.error("Push failed for", key, e);
+    syncStatus("error");
+  }
+}
+
+// Wrap localStorage to auto-sync
+const _setItem = localStorage.setItem.bind(localStorage);
+const _removeItem = localStorage.removeItem.bind(localStorage);
+localStorage.setItem = function(k, v){
+  _setItem(k, v);
+  if(isSyncableKey(k)) pushKey(k);
+};
+localStorage.removeItem = function(k){
+  _removeItem(k);
+  if(isSyncableKey(k)) pushKey(k);
+};
+
+// Pull on focus so multi-device changes appear
+window.addEventListener("focus", async ()=>{
+  if(!syncReady) return;
+  syncStatus("syncing");
+  await pullAll();
+  syncStatus("synced");
+  refreshDay();
+});
+
 // ----- Tabs -----
 document.querySelectorAll(".tab").forEach(tab=>{
   tab.addEventListener("click",()=>{
@@ -832,6 +1148,9 @@ document.querySelectorAll(".tab").forEach(tab=>{
     $("view-"+tab.dataset.view).classList.add("active");
     if(tab.dataset.view==="insights"){
       renderInsights();
+      $("actions").style.display = "none";
+    } else if(tab.dataset.view==="sabbath"){
+      renderSabbath();
       $("actions").style.display = "none";
     } else {
       $("actions").style.display = "flex";
@@ -844,9 +1163,26 @@ function refreshDay(){
   document.querySelectorAll(".check").forEach(c=>c.classList.remove("checked"));
   document.querySelectorAll(".seg button").forEach(b=>b.classList.remove("on"));
   document.querySelectorAll(".item").forEach(i=>i.classList.remove("done","na"));
+  $("reflection").value = "";
   load();
+  loadReflection();
   update();
   updateDateDisplay();
+}
+
+function loadReflection(){
+  const rKey = "reflect-" + viewingDate.toISOString().split("T")[0];
+  const r = localStorage.getItem(rKey) || "";
+  $("reflection").value = r;
+  updateReflectionMeta();
+}
+
+function updateReflectionMeta(){
+  const r = $("reflection").value.trim();
+  const meta = $("reflection-meta");
+  if(!r){ meta.textContent = ""; return; }
+  const words = r.split(/\s+/).length;
+  meta.textContent = `${words} word${words===1?"":"s"}`;
 }
 
 function updateDateDisplay(){
@@ -866,8 +1202,26 @@ function updateDateDisplay(){
 // Init
 viewingDate = new Date();
 build();
+loadReflection();
 updateDateDisplay();
 updateStreak();
+
+$("reflection").addEventListener("input", updateReflectionMeta);
+
+// Start cloud sync
+initSync().then(async ()=>{
+  // First-run migration: if cloud is empty but local has data, push it all up
+  if(!syncReady) return;
+  const { count } = await sb.from("life_data").select("key", { count: "exact", head: true });
+  if(count === 0){
+    const localKeys = Object.keys(localStorage).filter(isSyncableKey);
+    if(localKeys.length > 0){
+      toast(`Uploading ${localKeys.length} entries…`);
+      for(const k of localKeys){ await pushKey(k); }
+      toast("Backup complete ✓");
+    }
+  }
+});
 
 $("prevDay").addEventListener("click",()=>{
   viewingDate.setDate(viewingDate.getDate()-1);
