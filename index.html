@@ -256,7 +256,7 @@ canvas{width:100%;max-width:100%;display:block;margin-top:10px}
 
 <div class="actions" id="actions">
   <button class="btn btn-ghost" onclick="resetDay()">Reset</button>
-  <button class="btn btn-primary" onclick="save()">Save Day</button>
+  <button class="btn btn-primary" onclick="save()">Confirm Day</button>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -280,10 +280,18 @@ const familyWeekly = [
   {label:"Walk with son", desc:"No buggy"}
 ];
 
-const todayKey = () => "day-" + new Date().toISOString().split("T")[0];
+const todayKey = () => "day-" + localDateStr(new Date());
 let viewingDate = new Date(); // currently displayed day
-const viewingKey = () => "day-" + viewingDate.toISOString().split("T")[0];
+const viewingKey = () => "day-" + localDateStr(viewingDate);
 const isToday = () => viewingDate.toDateString() === new Date().toDateString();
+
+// Local-timezone YYYY-MM-DD (avoids UTC rollover bugs late at night)
+function localDateStr(d){
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,"0");
+  const day = String(d.getDate()).padStart(2,"0");
+  return `${y}-${m}-${day}`;
+}
 
 // ISO week key, week starts Monday
 function weekKey(date){
@@ -292,7 +300,7 @@ function weekKey(date){
   // Shift so Monday=0..Sunday=6
   const day = (d.getDay()+6)%7;
   d.setDate(d.getDate()-day);
-  return "week-" + d.toISOString().split("T")[0];
+  return "week-" + localDateStr(d);
 }
 const thisWeekKey = () => weekKey(new Date());
 const $ = id => document.getElementById(id);
@@ -332,6 +340,7 @@ function build(){
       btn.classList.toggle("checked");
       btn.closest(".item").classList.toggle("done",btn.classList.contains("checked"));
       update();
+      autoSaveDay();
     });
   });
   // Bind segmented
@@ -348,6 +357,7 @@ function build(){
           if(b.dataset.v==="na") item.classList.add("na");
         }
         update();
+        autoSaveDay();
       });
     });
   });
@@ -488,11 +498,17 @@ function update(){
   $("progress").style.width = pct + "%";
 }
 
+function autoSaveDay(){
+  const data = getDayData();
+  localStorage.setItem(viewingKey(), JSON.stringify(data));
+  updateStreak(true);
+}
+
 function save(){
   const data = getDayData();
   localStorage.setItem(viewingKey(), JSON.stringify(data));
   const reflection = $("reflection").value.trim();
-  const rKey = "reflect-" + viewingDate.toISOString().split("T")[0];
+  const rKey = "reflect-" + localDateStr(viewingDate);
   if(reflection) localStorage.setItem(rKey, reflection);
   else localStorage.removeItem(rKey);
   updateReflectionMeta();
@@ -503,7 +519,7 @@ function save(){
 function resetDay(){
   if(!confirm("Clear this day's entries?")) return;
   localStorage.removeItem(viewingKey());
-  localStorage.removeItem("reflect-" + viewingDate.toISOString().split("T")[0]);
+  localStorage.removeItem("reflect-" + localDateStr(viewingDate));
   $("reflection").value = "";
   updateReflectionMeta();
   document.querySelectorAll(".check").forEach(c=>c.classList.remove("checked"));
@@ -546,7 +562,7 @@ function updateStreak(justSaved=false){
   for(let i=0;i<3650;i++){
     const d = new Date(today);
     d.setDate(d.getDate()-i);
-    const key = "day-" + d.toISOString().split("T")[0];
+    const key = "day-" + localDateStr(d);
     if(localStorage.getItem(key)) streak++;
     else break;
   }
@@ -852,7 +868,7 @@ function exportData(){
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `life-system-${new Date().toISOString().split("T")[0]}.json`;
+  a.download = `life-system-${localDateStr(new Date())}.json`;
   a.click();
   URL.revokeObjectURL(url);
   toast("Exported");
@@ -898,7 +914,7 @@ function renderSabbath(){
   }
 
   const dayResults = weekDays.map(d=>{
-    const key = "day-" + d.toISOString().split("T")[0];
+    const key = "day-" + localDateStr(d);
     const data = JSON.parse(localStorage.getItem(key) || "null");
     if(!data) return {date:d, has:false, pct:0};
     let s=0,m=0;
@@ -918,7 +934,7 @@ function renderSabbath(){
   const habitStats = {};
   sections.forEach((sec)=>sec.items.forEach(item=>{ habitStats[item]={hits:0,chances:0}; }));
   weekDays.forEach(d=>{
-    const data = JSON.parse(localStorage.getItem("day-"+d.toISOString().split("T")[0]) || "null");
+    const data = JSON.parse(localStorage.getItem("day-"+localDateStr(d)) || "null");
     if(!data) return;
     sections.forEach((sec,i)=>{
       sec.items.forEach((item,j)=>{
@@ -941,7 +957,7 @@ function renderSabbath(){
   const fwData = JSON.parse(localStorage.getItem(fwKey) || "{}");
 
   const reflections = weekDays.map(d=>{
-    const r = localStorage.getItem("reflect-"+d.toISOString().split("T")[0]);
+    const r = localStorage.getItem("reflect-"+localDateStr(d));
     return r ? {date:d, text:r} : null;
   }).filter(Boolean);
 
@@ -1073,6 +1089,7 @@ async function initSync(){
     currentUserId = authData.user.id;
     syncReady = true;
     await pullAll();
+    await flushPending();
     syncStatus("synced");
     refreshDay();
     updateStreak();
@@ -1085,12 +1102,35 @@ async function initSync(){
 
 async function pullAll(){
   if(!syncReady) return;
-  const { data, error } = await sb.from("life_data").select("key,value");
+  const { data, error } = await sb.from("life_data").select("key,value,updated_at");
   if(error){ console.error("Pull failed:", error); syncStatus("error"); return; }
+  const cloudKeys = new Set();
   data.forEach(row=>{
+    cloudKeys.add(row.key);
     const v = typeof row.value === "string" ? row.value : JSON.stringify(row.value);
-    _setItem(row.key, v);
+    const localTs = parseInt(localStorage.getItem("__ts_" + row.key) || "0");
+    const cloudTs = new Date(row.updated_at).getTime();
+    if(cloudTs >= localTs){
+      _setItem(row.key, v);
+      _setItem("__ts_" + row.key, String(cloudTs));
+    }
   });
+  // Stash cloud keys for flushPending to compare against
+  window.__cloudKeys = cloudKeys;
+}
+
+async function flushPending(){
+  if(!syncReady) return;
+  // Any local syncable key whose local timestamp > 0 and isn't in cloud, or whose ts beats cloud, should be re-pushed
+  const cloudKeys = window.__cloudKeys || new Set();
+  const localKeys = Object.keys(localStorage).filter(isSyncableKey);
+  for(const k of localKeys){
+    const localTs = parseInt(localStorage.getItem("__ts_" + k) || "0");
+    if(!cloudKeys.has(k) && localTs > 0){
+      // Local has it, cloud doesn't — re-push
+      await pushKey(k);
+    }
+  }
 }
 
 async function pushKey(key){
@@ -1104,13 +1144,15 @@ async function pushKey(key){
     } else {
       let value;
       try { value = JSON.parse(raw); } catch { value = raw; }
+      const ts = new Date().toISOString();
       const { error } = await sb.from("life_data").upsert({
         user_id: currentUserId,
         key,
         value,
-        updated_at: new Date().toISOString()
+        updated_at: ts
       }, { onConflict: "user_id,key" });
       if(error) throw error;
+      _setItem("__ts_" + key, String(new Date(ts).getTime()));
     }
     syncStatus("synced");
   }catch(e){
@@ -1124,11 +1166,17 @@ const _setItem = localStorage.setItem.bind(localStorage);
 const _removeItem = localStorage.removeItem.bind(localStorage);
 localStorage.setItem = function(k, v){
   _setItem(k, v);
-  if(isSyncableKey(k)) pushKey(k);
+  if(isSyncableKey(k)){
+    _setItem("__ts_" + k, String(Date.now()));
+    pushKey(k);
+  }
 };
 localStorage.removeItem = function(k){
   _removeItem(k);
-  if(isSyncableKey(k)) pushKey(k);
+  if(isSyncableKey(k)){
+    _setItem("__ts_" + k, String(Date.now()));
+    pushKey(k);
+  }
 };
 
 // Pull on focus so multi-device changes appear
@@ -1173,7 +1221,7 @@ function refreshDay(){
 }
 
 function loadReflection(){
-  const rKey = "reflect-" + viewingDate.toISOString().split("T")[0];
+  const rKey = "reflect-" + localDateStr(viewingDate);
   const r = localStorage.getItem(rKey) || "";
   $("reflection").value = r;
   updateReflectionMeta();
@@ -1209,6 +1257,12 @@ updateDateDisplay();
 updateStreak();
 
 $("reflection").addEventListener("input", updateReflectionMeta);
+$("reflection").addEventListener("blur", ()=>{
+  const reflection = $("reflection").value.trim();
+  const rKey = "reflect-" + localDateStr(viewingDate);
+  if(reflection) localStorage.setItem(rKey, reflection);
+  else localStorage.removeItem(rKey);
+});
 
 // Start cloud sync
 initSync().then(async ()=>{
