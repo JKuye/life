@@ -128,6 +128,11 @@ canvas{width:100%;max-width:100%;display:block;margin-top:10px}
 .sabbath-title{font-family:'Fraunces',serif;font-size:30px;font-weight:300;line-height:1.1;letter-spacing:-.01em;margin-bottom:6px;position:relative}
 .sabbath-title em{font-style:italic;color:var(--gold)}
 .sabbath-dates{font-size:13px;color:rgba(245,241,234,.6);position:relative}
+.sabbath-nav{display:flex;align-items:center;gap:8px;position:relative;margin-bottom:6px}
+.sabbath-nav .sabbath-title{flex:1;margin-bottom:0}
+.sabbath-nav-btn{background:transparent;border:1px solid rgba(245,241,234,.2);color:rgba(245,241,234,.7);font-size:20px;width:34px;height:34px;border-radius:8px;cursor:pointer;font-family:'Fraunces',serif;padding:0;line-height:1;flex-shrink:0}
+.sabbath-nav-btn:active{background:rgba(245,241,234,.1)}
+.sabbath-nav-btn:disabled{opacity:.25;cursor:default}
 .sabbath-score{font-family:'Fraunces',serif;font-size:64px;font-weight:300;line-height:1;margin-top:18px;position:relative;display:flex;align-items:baseline;gap:6px}
 .sabbath-score .pct{font-size:24px;color:rgba(245,241,234,.5)}
 
@@ -370,17 +375,19 @@ function build(){
 
 function buildFamilyWeekly(){
   const wrap = $("familyWeekly");
-  const wk = "fweek-" + thisWeekKey().replace("week-","");
+  const baseWk = weekKey(viewingDate);
+  const wk = "fweek-" + baseWk.replace("week-","");
   const data = JSON.parse(localStorage.getItem(wk) || "{}");
-  const weekStart = new Date(thisWeekKey().replace("week-",""));
+  const weekStart = new Date(baseWk.replace("week-",""));
   const weekEnd = new Date(weekStart);
   weekEnd.setDate(weekEnd.getDate()+6);
   const fmt = d => d.toLocaleDateString(undefined,{month:"short",day:"numeric"});
+  const isCurrentWeek = baseWk === thisWeekKey();
 
   let html = `<div class="family-wk">
     <div class="section-head">
       <div>
-        <div class="kingdom-week">Week of ${fmt(weekStart)} – ${fmt(weekEnd)}</div>
+        <div class="kingdom-week">${isCurrentWeek ? "This week" : "Week of"} ${fmt(weekStart)} – ${fmt(weekEnd)}</div>
         <h3>❋ Family Weekly</h3>
       </div>
     </div>`;
@@ -400,7 +407,7 @@ function buildFamilyWeekly(){
   wrap.querySelectorAll(".fw-check").forEach(btn=>{
     btn.addEventListener("click",()=>{
       const i = btn.dataset.f;
-      const wk = "fweek-" + thisWeekKey().replace("week-","");
+      const wk = "fweek-" + weekKey(viewingDate).replace("week-","");
       const data = JSON.parse(localStorage.getItem(wk) || "{}");
       data[i] = !data[i];
       localStorage.setItem(wk, JSON.stringify(data));
@@ -412,17 +419,18 @@ function buildFamilyWeekly(){
 
 function buildKingdom(){
   const wrap = $("kingdom");
-  const wk = thisWeekKey();
+  const wk = weekKey(viewingDate);
   const data = JSON.parse(localStorage.getItem(wk) || "{}");
   const weekStart = new Date(wk.replace("week-",""));
   const weekEnd = new Date(weekStart);
   weekEnd.setDate(weekEnd.getDate()+6);
   const fmt = d => d.toLocaleDateString(undefined,{month:"short",day:"numeric"});
+  const isCurrentWeek = wk === thisWeekKey();
 
   let html = `<div class="kingdom">
     <div class="section-head">
       <div>
-        <div class="kingdom-week">Week of ${fmt(weekStart)} – ${fmt(weekEnd)}</div>
+        <div class="kingdom-week">${isCurrentWeek ? "This week" : "Week of"} ${fmt(weekStart)} – ${fmt(weekEnd)}</div>
         <h3>♰ Kingdom Actions</h3>
       </div>
     </div>`;
@@ -442,7 +450,7 @@ function buildKingdom(){
   wrap.querySelectorAll(".k-check").forEach(btn=>{
     btn.addEventListener("click",()=>{
       const i = btn.dataset.k;
-      const wk = thisWeekKey();
+      const wk = weekKey(viewingDate);
       const data = JSON.parse(localStorage.getItem(wk) || "{}");
       data[i] = !data[i];
       localStorage.setItem(wk, JSON.stringify(data));
@@ -897,19 +905,22 @@ function importData(){
 }
 
 // ----- SABBATH REVIEW -----
+let sabbathWeekOffset = 0; // 0 = this week, -1 = last week, etc.
+
 function renderSabbath(){
   const content = $("sabbath-content");
 
   const today = new Date(); today.setHours(0,0,0,0);
   const dow = (today.getDay()+6)%7;
-  const monday = new Date(today); monday.setDate(today.getDate()-dow);
+  const monday = new Date(today); monday.setDate(today.getDate()-dow + (sabbathWeekOffset*7));
   const sunday = new Date(monday); sunday.setDate(monday.getDate()+6);
   const fmt = d => d.toLocaleDateString(undefined,{month:"short",day:"numeric"});
+  const isCurrentWeek = sabbathWeekOffset === 0;
 
   const weekDays = [];
   for(let i=0;i<7;i++){
     const d = new Date(monday); d.setDate(monday.getDate()+i);
-    if(d > today) break;
+    if(isCurrentWeek && d > today) break;
     weekDays.push(d);
   }
 
@@ -951,7 +962,7 @@ function renderSabbath(){
   const top3 = habitList.slice(0,3);
   const weakest = habitList.length ? habitList[habitList.length-1] : null;
 
-  const wk = thisWeekKey();
+  const wk = weekKey(monday);
   const kData = JSON.parse(localStorage.getItem(wk) || "{}");
   const fwKey = "fweek-" + wk.replace("week-","");
   const fwData = JSON.parse(localStorage.getItem(fwKey) || "{}");
@@ -968,7 +979,11 @@ function renderSabbath(){
 
   html += `<div class="sabbath-hero">
     <div class="sabbath-eyebrow">Sabbath Review</div>
-    <div class="sabbath-title">Week of <em>${fmt(monday)}</em></div>
+    <div class="sabbath-nav">
+      <button class="sabbath-nav-btn" onclick="sabbathPrev()" aria-label="Previous week">‹</button>
+      <div class="sabbath-title">${isCurrentWeek ? "This Week" : `Week of <em>${fmt(monday)}</em>`}</div>
+      <button class="sabbath-nav-btn" onclick="sabbathNext()" aria-label="Next week" ${isCurrentWeek?"disabled":""}>›</button>
+    </div>
     <div class="sabbath-dates">${fmt(monday)} – ${fmt(sunday)} · ${logged.length} of ${weekDays.length} days logged</div>
     ${logged.length ? `<div class="sabbath-score">${weekAvg}<span class="pct">% avg</span></div>` : ""}
   </div>`;
@@ -1040,9 +1055,25 @@ function escapeHtml(s){
   return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
+function sabbathPrev(){
+  sabbathWeekOffset--;
+  renderSabbath();
+}
+
+function sabbathNext(){
+  if(sabbathWeekOffset >= 0) return;
+  sabbathWeekOffset++;
+  renderSabbath();
+}
+
 function saveWeeklyReflection(){
   const text = $("weekly-reflection").value.trim();
-  const key = "wreflect-" + thisWeekKey().replace("week-","");
+  // Use the currently viewed sabbath week
+  const today = new Date(); today.setHours(0,0,0,0);
+  const dow = (today.getDay()+6)%7;
+  const monday = new Date(today); monday.setDate(today.getDate()-dow + (sabbathWeekOffset*7));
+  const wk = weekKey(monday);
+  const key = "wreflect-" + wk.replace("week-","");
   if(text) localStorage.setItem(key, text);
   else localStorage.removeItem(key);
   toast("Reflection saved ✓");
@@ -1218,6 +1249,8 @@ function refreshDay(){
   loadReflection();
   update();
   updateDateDisplay();
+  buildKingdom();
+  buildFamilyWeekly();
 }
 
 function loadReflection(){
