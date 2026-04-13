@@ -1067,6 +1067,7 @@ const SYNC_PASSWORD = "Knopper";
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 let syncReady = false;
 let currentUserId = null;
+let pendingPushes = 0;
 
 function syncStatus(state){
   const dot = $("syncDot");
@@ -1077,6 +1078,7 @@ function syncStatus(state){
 }
 
 function isSyncableKey(k){
+  if(k.startsWith("__")) return false;
   return k.startsWith("day-") || k.startsWith("week-") || k.startsWith("fweek-") ||
          k.startsWith("reflect-") || k.startsWith("wreflect-") || k === "longest";
 }
@@ -1088,8 +1090,19 @@ async function initSync(){
     if(error) throw error;
     currentUserId = authData.user.id;
     syncReady = true;
+
+    // First-run migration: if cloud is empty but local has data, push it ALL up FIRST
+    const { data: existing } = await sb.from("life_data").select("key").limit(1);
+    if(!existing || existing.length === 0){
+      const localKeys = Object.keys(localStorage).filter(isSyncableKey);
+      if(localKeys.length > 0){
+        toast(`Uploading ${localKeys.length} entries…`);
+        for(const k of localKeys){ await pushKey(k); }
+        toast("Backup complete ✓");
+      }
+    }
+
     await pullAll();
-    await flushPending();
     syncStatus("synced");
     refreshDay();
     updateStreak();
@@ -1102,40 +1115,26 @@ async function initSync(){
 
 async function pullAll(){
   if(!syncReady) return;
-  const { data, error } = await sb.from("life_data").select("key,value,updated_at");
+  const { data, error } = await sb.from("life_data").select("key,value");
   if(error){ console.error("Pull failed:", error); syncStatus("error"); return; }
-  const cloudKeys = new Set();
-  data.forEach(row=>{
-    cloudKeys.add(row.key);
-    const v = typeof row.value === "string" ? row.value : JSON.stringify(row.value);
-    const localTs = parseInt(localStorage.getItem("__ts_" + row.key) || "0");
-    const cloudTs = new Date(row.updated_at).getTime();
-    if(cloudTs >= localTs){
-      _setItem(row.key, v);
-      _setItem("__ts_" + row.key, String(cloudTs));
-    }
-  });
-  // Stash cloud keys for flushPending to compare against
-  window.__cloudKeys = cloudKeys;
-}
 
-async function flushPending(){
-  if(!syncReady) return;
-  // Any local syncable key whose local timestamp > 0 and isn't in cloud, or whose ts beats cloud, should be re-pushed
-  const cloudKeys = window.__cloudKeys || new Set();
-  const localKeys = Object.keys(localStorage).filter(isSyncableKey);
-  for(const k of localKeys){
-    const localTs = parseInt(localStorage.getItem("__ts_" + k) || "0");
-    if(!cloudKeys.has(k) && localTs > 0){
-      // Local has it, cloud doesn't — re-push
-      await pushKey(k);
-    }
-  }
+  // Cloud is truth. Replace local syncable keys entirely.
+  // First, remove any local syncable keys that no longer exist in cloud
+  const cloudKeys = new Set(data.map(r=>r.key));
+  Object.keys(localStorage).filter(isSyncableKey).forEach(k=>{
+    if(!cloudKeys.has(k)) _removeItem(k);
+  });
+  // Then write all cloud values
+  data.forEach(row=>{
+    const v = typeof row.value === "string" ? row.value : JSON.stringify(row.value);
+    _setItem(row.key, v);
+  });
 }
 
 async function pushKey(key){
   if(!syncReady || !currentUserId) return;
   if(!isSyncableKey(key)) return;
+  pendingPushes++;
   syncStatus("syncing");
   try{
     const raw = localStorage.getItem(key);
@@ -1144,21 +1143,22 @@ async function pushKey(key){
     } else {
       let value;
       try { value = JSON.parse(raw); } catch { value = raw; }
-      const ts = new Date().toISOString();
       const { error } = await sb.from("life_data").upsert({
         user_id: currentUserId,
         key,
         value,
-        updated_at: ts
+        updated_at: new Date().toISOString()
       }, { onConflict: "user_id,key" });
       if(error) throw error;
-      _setItem("__ts_" + key, String(new Date(ts).getTime()));
     }
-    syncStatus("synced");
   }catch(e){
     console.error("Push failed for", key, e);
     syncStatus("error");
+    pendingPushes--;
+    return;
   }
+  pendingPushes--;
+  if(pendingPushes === 0) syncStatus("synced");
 }
 
 // Wrap localStorage to auto-sync
@@ -1166,27 +1166,27 @@ const _setItem = localStorage.setItem.bind(localStorage);
 const _removeItem = localStorage.removeItem.bind(localStorage);
 localStorage.setItem = function(k, v){
   _setItem(k, v);
-  if(isSyncableKey(k)){
-    _setItem("__ts_" + k, String(Date.now()));
-    pushKey(k);
-  }
+  if(isSyncableKey(k)) pushKey(k);
 };
 localStorage.removeItem = function(k){
   _removeItem(k);
-  if(isSyncableKey(k)){
-    _setItem("__ts_" + k, String(Date.now()));
-    pushKey(k);
-  }
+  if(isSyncableKey(k)) pushKey(k);
 };
 
-// Pull on focus so multi-device changes appear
+// Pull on focus so multi-device changes appear — but only if no pending pushes
 window.addEventListener("focus", async ()=>{
   if(!syncReady) return;
+  if(pendingPushes > 0) return; // Don't pull while we're mid-write
   syncStatus("syncing");
   await pullAll();
   syncStatus("synced");
   refreshDay();
   updateStreak();
+});
+
+// Best-effort flush on background — sendBeacon-style
+window.addEventListener("pagehide", ()=>{
+  // Browsers may suspend; nothing reliable we can do but at least the await above ran
 });
 
 // ----- Tabs -----
@@ -1265,19 +1265,7 @@ $("reflection").addEventListener("blur", ()=>{
 });
 
 // Start cloud sync
-initSync().then(async ()=>{
-  // First-run migration: if cloud is empty but local has data, push it all up
-  if(!syncReady) return;
-  const { count } = await sb.from("life_data").select("key", { count: "exact", head: true });
-  if(count === 0){
-    const localKeys = Object.keys(localStorage).filter(isSyncableKey);
-    if(localKeys.length > 0){
-      toast(`Uploading ${localKeys.length} entries…`);
-      for(const k of localKeys){ await pushKey(k); }
-      toast("Backup complete ✓");
-    }
-  }
-});
+initSync();
 
 $("prevDay").addEventListener("click",()=>{
   viewingDate.setDate(viewingDate.getDate()-1);
