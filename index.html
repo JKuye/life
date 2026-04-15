@@ -209,6 +209,16 @@ canvas{width:100%;max-width:100%;display:block;margin-top:10px}
 .sync-dot.syncing{background:var(--gold);animation:pulse 1s ease-in-out infinite}
 .sync-dot.error{background:var(--accent)}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* Debug panel */
+.debug-panel{position:fixed;bottom:80px;left:10px;right:10px;max-width:540px;margin:0 auto;background:#1a1713;color:#a8e6a3;border-radius:10px;padding:12px;font-family:'SF Mono',Menlo,monospace;font-size:11px;line-height:1.4;max-height:50vh;overflow-y:auto;z-index:50;box-shadow:0 8px 30px rgba(0,0,0,.4);display:none}
+.debug-panel.show{display:block}
+.debug-panel .err{color:#ff8080}
+.debug-panel .warn{color:#ffd980}
+.debug-panel .info{color:#80c8ff}
+.debug-panel pre{margin:4px 0;white-space:pre-wrap;word-break:break-all}
+.debug-toggle{position:fixed;bottom:80px;right:10px;width:36px;height:36px;border-radius:18px;background:var(--ink);color:var(--bg);border:none;font-size:14px;font-family:monospace;cursor:pointer;z-index:51;opacity:.5}
+.debug-toggle:active{opacity:1}
 </style>
 </head>
 <body>
@@ -265,6 +275,8 @@ canvas{width:100%;max-width:100%;display:block;margin-top:10px}
 </div>
 
 <div class="toast" id="toast"></div>
+<button class="debug-toggle" onclick="toggleDebug()">🔍</button>
+<div class="debug-panel" id="debugPanel"></div>
 
 <script>
 const sections = [
@@ -508,7 +520,10 @@ function update(){
 
 function autoSaveDay(){
   const data = getDayData();
-  localStorage.setItem(viewingKey(), JSON.stringify(data));
+  const key = viewingKey();
+  const json = JSON.stringify(data);
+  dbg(`autoSave ${key}: ${json.slice(0,80)}`);
+  localStorage.setItem(key, json);
   updateStreak(true);
 }
 
@@ -1089,6 +1104,36 @@ function toast(msg){
   toastTimer = setTimeout(()=>t.classList.remove("show"),1800);
 }
 
+// ----- DEBUG -----
+const debugLog = [];
+function dbg(msg, level="info"){
+  const ts = new Date().toLocaleTimeString();
+  debugLog.push({ts, msg, level});
+  if(debugLog.length > 100) debugLog.shift();
+  renderDebug();
+}
+function renderDebug(){
+  const panel = $("debugPanel");
+  if(!panel || !panel.classList.contains("show")) return;
+  panel.innerHTML = debugLog.slice(-40).reverse().map(e=>
+    `<div class="${e.level}">[${e.ts}] ${e.msg}</div>`
+  ).join("");
+}
+function toggleDebug(){
+  const panel = $("debugPanel");
+  panel.classList.toggle("show");
+  if(panel.classList.contains("show")){
+    // Add a snapshot of current state
+    dbg(`--- STATE SNAPSHOT ---`, "warn");
+    dbg(`viewing: ${localDateStr(viewingDate)}`, "info");
+    dbg(`syncReady: ${syncReady}, userId: ${currentUserId?.slice(0,8) || "none"}`, "info");
+    dbg(`pendingPushes: ${pendingPushes}`, "info");
+    const localKey = viewingKey();
+    dbg(`local[${localKey}]: ${localStorage.getItem(localKey) || "(empty)"}`, "info");
+    renderDebug();
+  }
+}
+
 // ----- SUPABASE SYNC -----
 const SUPABASE_URL = "https://yuzwyovstooowojltidx.supabase.co";
 const SUPABASE_KEY = "sb_publishable_upPkpgzzI6SnsFXv3qo0Gg_dK5_YH3W";
@@ -1116,17 +1161,19 @@ function isSyncableKey(k){
 
 async function initSync(){
   syncStatus("syncing");
+  dbg(`initSync START`);
   try{
     const { data: authData, error } = await sb.auth.signInWithPassword({ email: SYNC_EMAIL, password: SYNC_PASSWORD });
     if(error) throw error;
     currentUserId = authData.user.id;
     syncReady = true;
+    dbg(`signed in as ${currentUserId.slice(0,8)}`, "info");
 
-    // First-run migration: if cloud is empty but local has data, push it ALL up FIRST
     const { data: existing } = await sb.from("life_data").select("key").limit(1);
     if(!existing || existing.length === 0){
       const localKeys = Object.keys(localStorage).filter(isSyncableKey);
       if(localKeys.length > 0){
+        dbg(`first-run: uploading ${localKeys.length} local keys`, "warn");
         toast(`Uploading ${localKeys.length} entries…`);
         for(const k of localKeys){ await pushKey(k); }
         toast("Backup complete ✓");
@@ -1137,8 +1184,9 @@ async function initSync(){
     syncStatus("synced");
     refreshDay();
     updateStreak();
+    dbg(`initSync DONE`, "info");
   }catch(e){
-    console.error("Sync init failed:", e);
+    dbg(`initSync FAILED: ${e.message}`, "err");
     syncStatus("error");
     toast("Sync offline — using local data");
   }
@@ -1146,34 +1194,43 @@ async function initSync(){
 
 async function pullAll(){
   if(!syncReady) return;
+  dbg(`pull START`);
   const { data, error } = await sb.from("life_data").select("key,value");
-  if(error){ console.error("Pull failed:", error); syncStatus("error"); return; }
+  if(error){ dbg(`pull FAILED: ${error.message}`, "err"); syncStatus("error"); return; }
+  dbg(`pull got ${data.length} rows from cloud`);
 
-  // Cloud is truth. Replace local syncable keys entirely.
-  // First, remove any local syncable keys that no longer exist in cloud
   const cloudKeys = new Set(data.map(r=>r.key));
   Object.keys(localStorage).filter(isSyncableKey).forEach(k=>{
-    if(!cloudKeys.has(k)) _removeItem(k);
+    if(!cloudKeys.has(k)){
+      dbg(`pull DELETE local ${k} (not in cloud)`, "warn");
+      _removeItem(k);
+    }
   });
-  // Then write all cloud values
   data.forEach(row=>{
     const v = typeof row.value === "string" ? row.value : JSON.stringify(row.value);
+    const before = localStorage.getItem(row.key);
+    if(before !== v){
+      dbg(`pull OVERWRITE ${row.key}: ${(before||"null").slice(0,40)} → ${v.slice(0,40)}`, "warn");
+    }
     _setItem(row.key, v);
   });
+  dbg(`pull DONE`, "info");
 }
 
 async function pushKey(key){
-  if(!syncReady || !currentUserId) return;
+  if(!syncReady || !currentUserId){ dbg(`push skipped (not ready) ${key}`, "warn"); return; }
   if(!isSyncableKey(key)) return;
   pendingPushes++;
   syncStatus("syncing");
   try{
     const raw = localStorage.getItem(key);
     if(raw === null){
+      dbg(`push DELETE ${key}`);
       await sb.from("life_data").delete().eq("key", key);
     } else {
       let value;
       try { value = JSON.parse(raw); } catch { value = raw; }
+      dbg(`push UPSERT ${key}: ${raw.slice(0,60)}`);
       const { error } = await sb.from("life_data").upsert({
         user_id: currentUserId,
         key,
@@ -1181,9 +1238,10 @@ async function pushKey(key){
         updated_at: new Date().toISOString()
       }, { onConflict: "user_id,key" });
       if(error) throw error;
+      dbg(`push OK ${key}`, "info");
     }
   }catch(e){
-    console.error("Push failed for", key, e);
+    dbg(`push FAILED ${key}: ${e.message}`, "err");
     syncStatus("error");
     pendingPushes--;
     return;
@@ -1207,7 +1265,8 @@ localStorage.removeItem = function(k){
 // Pull on focus so multi-device changes appear — but only if no pending pushes
 window.addEventListener("focus", async ()=>{
   if(!syncReady) return;
-  if(pendingPushes > 0) return; // Don't pull while we're mid-write
+  if(pendingPushes > 0){ dbg(`focus: skipping pull (${pendingPushes} pending)`, "warn"); return; }
+  dbg(`focus: pulling`);
   syncStatus("syncing");
   await pullAll();
   syncStatus("synced");
