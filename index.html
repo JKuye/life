@@ -1199,21 +1199,26 @@ async function pullAll(){
   if(error){ dbg(`pull FAILED: ${error.message}`, "err"); syncStatus("error"); return; }
   dbg(`pull got ${data.length} rows from cloud`);
 
-  const cloudKeys = new Set(data.map(r=>r.key));
-  Object.keys(localStorage).filter(isSyncableKey).forEach(k=>{
-    if(!cloudKeys.has(k)){
-      dbg(`pull DELETE local ${k} (not in cloud)`, "warn");
-      _removeItem(k);
-    }
-  });
+  // Merge cloud into local — cloud UPDATES local, but NEVER deletes local keys.
+  // If local has something cloud doesn't, it means the push hasn't landed yet.
+  // We'll re-push those orphans after pull completes.
   data.forEach(row=>{
     const v = typeof row.value === "string" ? row.value : JSON.stringify(row.value);
     const before = localStorage.getItem(row.key);
     if(before !== v){
-      dbg(`pull OVERWRITE ${row.key}: ${(before||"null").slice(0,40)} → ${v.slice(0,40)}`, "warn");
+      dbg(`pull UPDATE ${row.key}: ${(before||"null").slice(0,40)} → ${v.slice(0,40)}`, "warn");
     }
     _setItem(row.key, v);
   });
+
+  // Re-push any local syncable keys that cloud doesn't know about
+  const cloudKeys = new Set(data.map(r=>r.key));
+  const orphans = Object.keys(localStorage).filter(k => isSyncableKey(k) && !cloudKeys.has(k));
+  if(orphans.length > 0){
+    dbg(`pull found ${orphans.length} local keys not in cloud — re-pushing`, "warn");
+    for(const k of orphans){ await pushKey(k); }
+  }
+
   dbg(`pull DONE`, "info");
 }
 
@@ -1250,33 +1255,47 @@ async function pushKey(key){
   if(pendingPushes === 0) syncStatus("synced");
 }
 
-// Wrap localStorage to auto-sync
+// Pull on focus — debounced and with post-save cooldown
+let lastSaveTime = 0;
+let focusTimer = null;
+
+// Store raw references before wrapping
 const _setItem = localStorage.setItem.bind(localStorage);
 const _removeItem = localStorage.removeItem.bind(localStorage);
+
+// Wrap localStorage to auto-sync on write
 localStorage.setItem = function(k, v){
   _setItem(k, v);
-  if(isSyncableKey(k)) pushKey(k);
+  if(isSyncableKey(k)){
+    lastSaveTime = Date.now();
+    pushKey(k);
+  }
 };
 localStorage.removeItem = function(k){
   _removeItem(k);
-  if(isSyncableKey(k)) pushKey(k);
+  if(isSyncableKey(k)){
+    lastSaveTime = Date.now();
+    pushKey(k);
+  }
 };
 
-// Pull on focus so multi-device changes appear — but only if no pending pushes
-window.addEventListener("focus", async ()=>{
+window.addEventListener("focus", ()=>{
   if(!syncReady) return;
   if(pendingPushes > 0){ dbg(`focus: skipping pull (${pendingPushes} pending)`, "warn"); return; }
-  dbg(`focus: pulling`);
-  syncStatus("syncing");
-  await pullAll();
-  syncStatus("synced");
-  refreshDay();
-  updateStreak();
-});
-
-// Best-effort flush on background — sendBeacon-style
-window.addEventListener("pagehide", ()=>{
-  // Browsers may suspend; nothing reliable we can do but at least the await above ran
+  // Wait at least 3 seconds after last save to give pushes time to land
+  const sinceSave = Date.now() - lastSaveTime;
+  const delay = Math.max(500, 3000 - sinceSave);
+  clearTimeout(focusTimer);
+  dbg(`focus: scheduling pull in ${delay}ms`);
+  focusTimer = setTimeout(async ()=>{
+    if(pendingPushes > 0){ dbg(`focus pull aborted (pending pushes)`, "warn"); return; }
+    dbg(`focus: pulling now`);
+    syncStatus("syncing");
+    await pullAll();
+    syncStatus("synced");
+    refreshDay();
+    updateStreak();
+  }, delay);
 });
 
 // ----- Tabs -----
