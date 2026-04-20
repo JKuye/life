@@ -1194,15 +1194,17 @@ async function initSync(){
 
 async function pullAll(){
   if(!syncReady) return;
-  dbg(`pull START`);
+  dbg(`pull START (${dirtyKeys.size} dirty keys)`);
   const { data, error } = await sb.from("life_data").select("key,value");
   if(error){ dbg(`pull FAILED: ${error.message}`, "err"); syncStatus("error"); return; }
   dbg(`pull got ${data.length} rows from cloud`);
 
-  // Merge cloud into local — cloud UPDATES local, but NEVER deletes local keys.
-  // If local has something cloud doesn't, it means the push hasn't landed yet.
-  // We'll re-push those orphans after pull completes.
   data.forEach(row=>{
+    // Never overwrite a key that was written locally since the last pull
+    if(dirtyKeys.has(row.key)){
+      dbg(`pull SKIP dirty ${row.key}`, "warn");
+      return;
+    }
     const v = typeof row.value === "string" ? row.value : JSON.stringify(row.value);
     const before = localStorage.getItem(row.key);
     if(before !== v){
@@ -1219,6 +1221,8 @@ async function pullAll(){
     for(const k of orphans){ await pushKey(k); }
   }
 
+  // Clear dirty set — the next pull can safely overwrite everything
+  dirtyKeys.clear();
   dbg(`pull DONE`, "info");
 }
 
@@ -1244,6 +1248,7 @@ async function pushKey(key){
       }, { onConflict: "user_id,key" });
       if(error) throw error;
       dbg(`push OK ${key}`, "info");
+      dirtyKeys.delete(key);
     }
   }catch(e){
     dbg(`push FAILED ${key}: ${e.message}`, "err");
@@ -1259,6 +1264,9 @@ async function pushKey(key){
 let lastSaveTime = 0;
 let focusTimer = null;
 
+// Track locally-dirty keys — written since last pull
+const dirtyKeys = new Set();
+
 // Store raw references before wrapping
 const _setItem = localStorage.setItem.bind(localStorage);
 const _removeItem = localStorage.removeItem.bind(localStorage);
@@ -1267,6 +1275,7 @@ const _removeItem = localStorage.removeItem.bind(localStorage);
 localStorage.setItem = function(k, v){
   _setItem(k, v);
   if(isSyncableKey(k)){
+    dirtyKeys.add(k);
     lastSaveTime = Date.now();
     pushKey(k);
   }
@@ -1274,6 +1283,7 @@ localStorage.setItem = function(k, v){
 localStorage.removeItem = function(k){
   _removeItem(k);
   if(isSyncableKey(k)){
+    dirtyKeys.add(k);
     lastSaveTime = Date.now();
     pushKey(k);
   }
